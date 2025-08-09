@@ -21,7 +21,7 @@
           {% if c == "" %}
             <div></div>
           {% else %}
-            <div class="day {{ ' '.join(['mark-'+t for t in c.marks]) }}">
+            <div class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}">
               {{ c.day }}
             </div>
           {% endif %}
