@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="header">
+  <div class="title">{{ header.title }}</div>
+  <div class="subtle">{{ header.subtitle }}</div>
+</div>
+
+<div class="layout">
+  <section class="year-grid">
+    {% for m in months %}
+    <article class="month">
+      <header>
+        <div>{{ m.name }} {{ m.year }}</div>
+        <div class="subtle">{{ m.note or "" }}</div>
+      </header>
+      <div class="dow">
+        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+      </div>
+      <div class="days">
+        {% for c in m.cells %}
+          {% if c == "" %}
+            <div></div>
+          {% else %}
+            <div class="day {{ ' '.join(['mark-'+t for t in c.marks]) }}">
+              {{ c.day }}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+
+  <aside class="sidebar">
+    <section class="legend">
+      <h3>Key</h3>
+      <ul>
+        <li><span class="chip no_school"></span> No School</li>
+        <li><span class="chip half_day"></span> Half Day</li>
+        <li><span class="chip first_last"></span> First/Last Day</li>
+        <li><span class="chip early_release"></span> Early Release</li>
+        <li><span class="chip ptsa_event"></span> PTSA Event</li>
+      </ul>
+    </section>
+    <section class="important">
+      <h3>Important Dates</h3>
+      <ul>
+        {% for e in important %}
+          <li><strong>{{ e.when }}</strong> — {{ e.label }}{% if e.notes %} <span class="subtle">({{ e.notes }})</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    <div class="footer">
+      <div>Updated {{ meta.generated_at }}</div>
+      <div>{{ meta.source_note }}</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

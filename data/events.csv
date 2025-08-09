@@ -1,0 +1,9 @@
+date,start_date,end_date,type,scope,label,notes
+2025-09-01,,,no_school,district,Labor Day,
+,2025-09-02,2025-09-04,kinder_family_conn,district,Kindergarten Family Connections,
+2025-09-02,,,first_day_1_12,district,First Day (Grades 1–12),
+2025-09-08,,,first_day_k,district,First Day (Kindergarten),
+2025-11-11,,,no_school,district,Veterans Day,
+2025-11-27,2025-11-28,,no_school,district,Thanksgiving Break,
+2025-12-22,2026-01-02,,no_school,district,Winter Break,
+2026-06-19,,,last_day,district,Last Day of School (Tentative),
