@@ -178,7 +178,7 @@ def main():
         autoescape=select_autoescape(['html', 'xml'])
     )
     tpl = env.get_template(args.template)
-    html_str = tpl.render(title=ctx["title"], **ctx)
+    html_str = tpl.render(**ctx)
 
     out_path = pathlib.Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
