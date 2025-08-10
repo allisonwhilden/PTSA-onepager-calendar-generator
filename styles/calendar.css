@@ -64,34 +64,30 @@ html, body {
   font-weight: 600;
   margin-bottom: 3pt;
 }
-/* days of week row */
-.dow {
-  display: flex;
-  gap: 2pt;
-  font-size: 7pt;
+/* month grid as table for predictable layout */
+.month-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.month-grid thead th {
+  background: #f3f4f6;
   color: var(--muted);
-  margin-bottom: 2pt;
+  font-weight: 600;
+  font-size: 7pt;
+  padding: 2pt 0;
+  border: 1pt solid #e5e7eb;
 }
-.dow > div { flex: 1 1 calc(100%/7); text-align: center; }
-
-/* day cells arranged in explicit week rows */
-.days {
-  display: flex;
-  flex-direction: column;
-  gap: 2pt; /* gap between weeks */
+.month-grid tbody td {
+  position: relative;
+  height: 16pt; /* fixed row height */
+  border: 1pt solid #e5e7eb;
+  vertical-align: middle;
+  text-align: center;
+  border-radius: 0; /* let table handle shape */
 }
-.week {
-  display: flex;
-  gap: 2pt; /* gap between days */
-}
-.day {
-  width: calc((100% - (6 * 2pt)) / 7);
-  height: 12pt;
-  border-radius: 4pt;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
+.month-grid td .num {
+  position: absolute;
+  top: 2pt;
+  right: 3pt;
+  font-size: 7pt;
+  color: var(--ink);
 }
 .day.empty { background: transparent; }
 /* Replace color-mix with rgba tints for compatibility */

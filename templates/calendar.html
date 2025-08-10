@@ -13,22 +13,26 @@
         <div>{{ m.name }} {{ m.year }}</div>
         <div class="subtle">{{ m.note or "" }}</div>
       </header>
-      <div class="dow">
-        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
-      </div>
-      <div class="days">
-        {% for week in m.cells|batch(7) %}
-          <div class="week">
+      <table class="month-grid" aria-hidden="true">
+        <thead>
+          <tr class="dow">
+            <th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in m.cells|batch(7) %}
+          <tr>
             {% for c in week %}
               {% if c == "" %}
-                <div class="day empty"></div>
+                <td class="day empty"></td>
               {% else %}
-                <div class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}">{{ c.day }}</div>
+                <td class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}"><span class="num">{{ c.day }}</span></td>
               {% endif %}
             {% endfor %}
-          </div>
-        {% endfor %}
-      </div>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </article>
     {% endfor %}
   </section>
