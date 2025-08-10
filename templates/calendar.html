@@ -17,14 +17,16 @@
         <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
       </div>
       <div class="days">
-        {% for c in m.cells %}
-          {% if c == "" %}
-            <div></div>
-          {% else %}
-            <div class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}">
-              {{ c.day }}
-            </div>
-          {% endif %}
+        {% for week in m.cells|batch(7) %}
+          <div class="week">
+            {% for c in week %}
+              {% if c == "" %}
+                <div class="day empty"></div>
+              {% else %}
+                <div class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}">{{ c.day }}</div>
+              {% endif %}
+            {% endfor %}
+          </div>
         {% endfor %}
       </div>
     </article>

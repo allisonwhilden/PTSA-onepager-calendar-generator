@@ -74,11 +74,15 @@ html, body {
 }
 .dow > div { flex: 1 1 calc(100%/7); text-align: center; }
 
-/* day cells */
+/* day cells arranged in explicit week rows */
 .days {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2pt;
+  flex-direction: column;
+  gap: 2pt; /* gap between weeks */
+}
+.week {
+  display: flex;
+  gap: 2pt; /* gap between days */
 }
 .day {
   width: calc((100% - (6 * 2pt)) / 7);
@@ -89,6 +93,7 @@ html, body {
   justify-content: center;
   font-variant-numeric: tabular-nums;
 }
+.day.empty { background: transparent; }
 /* Replace color-mix with rgba tints for compatibility */
 .day.mark-no_school { background: rgba(239, 68, 68, 0.16); }
 .day.mark-half_day { background: rgba(245, 158, 11, 0.18); }
