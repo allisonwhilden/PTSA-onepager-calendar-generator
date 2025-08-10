@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
 <header class="topbar">
-  <div class="title">{{ header.title }}</div>
-  <div class="subtle">{{ header.subtitle }}</div>
+  <div class="title">Horace Mann PTSA | 2025-26 Calendar</div>
+  <div class="logo-area"></div>
 </header>
 
 <div class="layout-col">
@@ -26,7 +26,9 @@
               {% if c == "" %}
                 <td class="day empty"></td>
               {% else %}
-                <td class="day{% for t in c.marks %} mark-{{ t }}{% endfor %}"><span class="num">{{ c.day }}</span></td>
+                <td class="day{% if c.is_weekend %} weekend{% endif %}{% for t in c.marks %} mark-{{ t }}{% endfor %}{% if c.has_diamond %} diamond{% endif %}{% if c.has_circle %} circle{% endif %}">
+                  {% if c.has_diamond or c.has_circle %}<span>{{ c.day }}</span>{% else %}{{ c.day }}{% endif %}{% if "no_school" not in c.marks and "half_day" not in c.marks and "early_release" not in c.marks %}{% if "first_day" in c.marks or "last_day" in c.marks %}{% if c.has_diamond or c.has_circle %} {% endif %}*{% elif "ptsa_event" not in c.marks and c.marks %}*{% endif %}{% elif "no_school" not in c.marks and "half_day" not in c.marks and c.marks|length > 1 and "early_release" in c.marks and "ptsa_event" not in c.marks %}*{% endif %}
+                </td>
               {% endif %}
             {% endfor %}
           </tr>
@@ -38,29 +40,32 @@
   </section>
 
   <section class="below">
-    <div class="section-title">Important Dates</div>
-    <section class="important">
-      <ul>
-        {% for e in important %}
-          <li><strong>{{ e.when }}</strong> — {{ e.label }}{% if e.notes %} <span class="subtle">({{ e.notes }})</span>{% endif %}</li>
-        {% endfor %}
-      </ul>
-    </section>
-    <section class="legend">
-      <div class="legend-title">Key</div>
-      <ul>
-        <li><span class="chip no_school"></span> No School</li>
-        <li><span class="chip half_day"></span> Half Day</li>
-        <li><span class="chip first_last"></span> First/Last Day</li>
-        <li><span class="chip early_release"></span> Early Release</li>
-        <li><span class="chip ptsa_event"></span> PTSA Event</li>
-      </ul>
-    </section>
+    <div class="important-legend-container">
+      <section class="important">
+        <div class="section-title">Important Dates</div>
+        <ul>
+          {% for e in important %}
+            <li{% if not e.is_ptsa %} class="district-event"{% endif %}><b>{{ e.when }}</b> {{ e.label }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      <section class="legend">
+        <div class="legend-title">Key</div>
+        <ul>
+          <li><span class="chip no_school"></span> No School</li>
+          <li><span class="chip half_day"></span> Half Day</li>
+          <li><span style="border: 1pt solid #000; padding: 0.5pt 2pt; display: inline-block;">1</span> First/Last Day</li>
+          <li><span style="border: 1pt solid #C40A0C; border-radius: 50%; width: 14pt; height: 14pt; line-height: 14pt; text-align: center; display: inline-block;">1</span> PTSA Event</li>
+          <li><b>Bold</b> = Early Release Wed</li>
+          <li><span class="symbol">*</span> Check Important Dates</li>
+        </ul>
+        <div class="notes">
+          <div>Updated {{ meta.generated_at }}</div>
+          <div>Calendar is subject to change.</div>
+          <div>School year may be extended due to inclement weather.</div>
+        </div>
+      </section>
+    </div>
   </section>
-
-  <div class="footer">
-    <div>Updated {{ meta.generated_at }}</div>
-    <div>{{ meta.source_note }}</div>
-  </div>
 </div>
 {% endblock %}

@@ -67,19 +67,38 @@ def expand_events(rows):
 def bucket_by_month(expanded, year):
     """Return { (year, month) : {day:int -> [types]} } for the given school year span (Aug/Sept .. Jun)"""
     buckets = {}
+    
+    # First collect all events from the data
     for d, row in expanded:
-        # School years can straddle new year; we include any months that match the target school year's months.
-        # We'll construct months list externally; here we just collect.
         key = (d.year, d.month)
         buckets.setdefault(key, {}).setdefault(d.day, []).append(row["type"] or "ptsa_event")
+    
+    # Now add early_release to all Wednesdays starting Sept 10, 2025 through end of school year
+    # unless they're already marked as no_school or half_day
+    early_release_start = dt.date(2025, 9, 10)
+    school_year_end = dt.date(2026, 6, 17)  # Last day of school
+    
+    current = early_release_start
+    while current <= school_year_end:
+        if current.weekday() == 2:  # Wednesday = 2
+            key = (current.year, current.month)
+            day_marks = buckets.setdefault(key, {}).setdefault(current.day, [])
+            # Only add early_release if it's not a no_school or half_day
+            if "no_school" not in day_marks and "half_day" not in day_marks:
+                if "early_release" not in day_marks:
+                    day_marks.append("early_release")
+        current += dt.timedelta(days=7)  # Move to next Wednesday
+    
     return buckets
 
 def school_year_months(year_start):
-    """Return a list of (year, month) covering Sep..Jun for a given starting calendar year (ex: 2025 => Sep 2025..Jun 2026)."""
+    """Return a list of (year, month) covering Aug..Jul for a given starting calendar year."""
     seq = []
+    # Start with August of the starting year
+    seq.append((year_start, 8))  # August
     for m in range(9, 13):  # Sep..Dec
         seq.append((year_start, m))
-    for m in range(1, 7):   # Jan..Jun
+    for m in range(1, 8):   # Jan..Jul
         seq.append((year_start + 1, m))
     return seq
 
@@ -93,16 +112,29 @@ def make_month_cells(year, month, marks_for_day):
     for _ in range(sun_first_index):
         cells.append("")
     for d in range(1, num_days + 1):
+        # Calculate day of week for this date
+        date_obj = dt.date(year, month, d)
+        day_of_week = date_obj.weekday()  # Mon=0, Sun=6
+        is_weekend = day_of_week in (5, 6)  # Saturday=5, Sunday=6
+        
+        # Check if this is one of the three special diamond days
+        has_diamond = False
+        if (year == 2025 and month == 9 and d in [2, 5]) or (year == 2026 and month == 6 and d == 17):
+            has_diamond = True
+        
         marks = marks_for_day.get(d, [])
+        # Check if this day has a PTSA event
+        has_circle = "ptsa_event" in marks
+        
         # collapse first/last into a single style token if needed
         style_marks = []
         for t in marks:
-            if t in ("first_day", "last_day"):
+            if t in ("first_day", "last_day", "first_day_1_12", "first_day_k"):
                 style_marks.append(t)
             elif t in ("no_school", "half_day", "early_release", "ptsa_event"):
                 style_marks.append(t)
         style_marks = list(dict.fromkeys(style_marks))  # dedupe preserving order
-        cells.append(type("Cell", (), {"day": d, "marks": style_marks}))
+        cells.append(type("Cell", (), {"day": d, "marks": style_marks, "is_weekend": is_weekend, "has_diamond": has_diamond, "has_circle": has_circle}))
     while len(cells) % 7 != 0:
         cells.append("")
     # Ensure 6 rows (42 cells)
@@ -113,18 +145,85 @@ def make_month_cells(year, month, marks_for_day):
 def format_important_dates(expanded, months_span):
     """Return a sorted list of human-readable events within the months span for the Important Dates column."""
     span_set = set(months_span)
-    items = {}
+    
+    # Group events by label and notes to find date ranges
+    event_groups = {}
     for d, row in expanded:
         key = (d.year, d.month)
         if key not in span_set:
             continue
         label = row.get("label") or row.get("type")
         notes = row.get("notes") or ""
-        items.setdefault((d, label, notes), True)
-    # sort by date then label
-    result = [{"when": d.strftime("%b %-d, %Y") if os.name != "nt" else d.strftime("%b %#d, %Y"),
-               "label": label,
-               "notes": notes} for (d, label, notes) in sorted(items.keys(), key=lambda x: (x[0], x[1]))]
+        scope = row.get("scope") or ""
+        event_key = (label, notes, scope)
+        
+        if event_key not in event_groups:
+            event_groups[event_key] = []
+        event_groups[event_key].append(d)
+    
+    # Format events with date ranges
+    result = []
+    for (label, notes, scope), dates in event_groups.items():
+        dates = sorted(dates)
+        
+        # Check if dates are consecutive
+        if len(dates) > 1:
+            # Check for consecutive date range
+            date_ranges = []
+            range_start = dates[0]
+            range_end = dates[0]
+            
+            for i in range(1, len(dates)):
+                if (dates[i] - dates[i-1]).days == 1:
+                    range_end = dates[i]
+                else:
+                    # Save current range and start new one
+                    if range_start == range_end:
+                        date_str = range_start.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                        date_ranges.append(date_str)
+                    else:
+                        start_str = range_start.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                        end_str = range_end.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                        date_ranges.append(f"{start_str}-{end_str}")
+                    range_start = dates[i]
+                    range_end = dates[i]
+            
+            # Add the last range
+            if range_start == range_end:
+                date_str = range_start.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                date_ranges.append(date_str)
+            else:
+                start_str = range_start.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                end_str = range_end.strftime("%m/%d").lstrip("0").replace("/0", "/")
+                date_ranges.append(f"{start_str}-{end_str}")
+            
+            # Create formatted date string
+            when_str = ", ".join(date_ranges) if len(date_ranges) > 1 else date_ranges[0]
+        else:
+            when_str = dates[0].strftime("%m/%d")
+        
+        # Remove leading zeros from month
+        when_str = when_str.lstrip("0").replace("/0", "/")
+        
+        # Add PTSA prefix for PTSA events
+        if scope == "ptsa":
+            label = "PTSA: " + label
+        
+        result.append({
+            "when": when_str,
+            "label": label,
+            "notes": notes,
+            "is_ptsa": scope == "ptsa",
+            "sort_date": dates[0]  # For sorting purposes
+        })
+    
+    # Sort by first date of each event
+    result.sort(key=lambda x: x["sort_date"])
+    
+    # Remove sort_date from final result
+    for item in result:
+        del item["sort_date"]
+    
     return result
 
 def build_context(year_start, events_paths):
@@ -147,9 +246,9 @@ def build_context(year_start, events_paths):
     important = format_important_dates(expanded, months_span)
 
     ctx = {
-        "title": f"{year_start}-{(year_start+1)%100:02d} One-Page Calendar",
+        "title": f"{year_start}-{(year_start+1)%100:02d} Calendar",
         "header": {
-            "title": f"{year_start}-{(year_start+1)%100:02d} School Year — One-Page Calendar",
+            "title": f"{year_start}-{(year_start+1)%100:02d} Calendar",
             "subtitle": "PTSA + District Dates"
         },
         "months": months,
