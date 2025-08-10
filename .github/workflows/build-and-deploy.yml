@@ -32,20 +32,17 @@ jobs:
           pip install -r requirements.txt
       - name: Build PDF
         run: |
-          python build.py --year 2025 --out build/LWSD-2025-26-onepage.pdf
-          cp build/LWSD-2025-26-onepage.pdf HoraceMann-PTSA-2025-26-Calendar.pdf
+          python build.py --year 2025 --out /tmp/LWSD-2025-26-onepage.pdf
+          cp /tmp/LWSD-2025-26-onepage.pdf /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: HoraceMann-PTSA-Calendar
-          path: HoraceMann-PTSA-2025-26-Calendar.pdf
+          path: /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
       - name: Deploy PDF to GitHub Pages branch
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # Save the PDF to temp location
-          cp HoraceMann-PTSA-2025-26-Calendar.pdf /tmp/calendar-temp.pdf
           
           # Try to fetch the gh-pages branch, create if it doesn't exist
           git fetch origin gh-pages:refs/remotes/origin/gh-pages || true
@@ -61,8 +58,8 @@ jobs:
           fi
           
           # Copy the PDF with a stable name for easy linking
-          cp /tmp/calendar-temp.pdf calendar.pdf
-          cp /tmp/calendar-temp.pdf "calendar-$(date +%Y%m%d).pdf"
+          cp /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf calendar.pdf
+          cp /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf "calendar-$(date +%Y%m%d).pdf"
           
           # Create a simple index.html for web viewing
           cat > index.html << 'EOF'
