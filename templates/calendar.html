@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="header">
+<header class="topbar">
   <div class="title">{{ header.title }}</div>
   <div class="subtle">{{ header.subtitle }}</div>
-</div>
+</header>
 
 <div class="layout-col">
   <section class="year-grid full-width">
@@ -38,8 +38,8 @@
   </section>
 
   <section class="below">
+    <div class="section-title">Important Dates</div>
     <section class="important">
-      <h3>Important Dates</h3>
       <ul>
         {% for e in important %}
           <li><strong>{{ e.when }}</strong> — {{ e.label }}{% if e.notes %} <span class="subtle">({{ e.notes }})</span>{% endif %}</li>
@@ -47,7 +47,7 @@
       </ul>
     </section>
     <section class="legend">
-      <h3>Key</h3>
+      <div class="legend-title">Key</div>
       <ul>
         <li><span class="chip no_school"></span> No School</li>
         <li><span class="chip half_day"></span> Half Day</li>
