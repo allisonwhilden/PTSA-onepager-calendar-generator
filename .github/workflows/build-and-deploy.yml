@@ -44,6 +44,9 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
+          # Save the PDF to temp location
+          cp HoraceMann-PTSA-2025-26-Calendar.pdf /tmp/calendar-temp.pdf
+          
           # Try to fetch the gh-pages branch, create if it doesn't exist
           git fetch origin gh-pages:refs/remotes/origin/gh-pages || true
           
@@ -58,8 +61,8 @@ jobs:
           fi
           
           # Copy the PDF with a stable name for easy linking
-          cp ${{ github.workspace }}/HoraceMann-PTSA-2025-26-Calendar.pdf calendar.pdf
-          cp ${{ github.workspace }}/HoraceMann-PTSA-2025-26-Calendar.pdf "calendar-$(date +%Y%m%d).pdf"
+          cp /tmp/calendar-temp.pdf calendar.pdf
+          cp /tmp/calendar-temp.pdf "calendar-$(date +%Y%m%d).pdf"
           
           # Create a simple index.html for web viewing
           cat > index.html << 'EOF'

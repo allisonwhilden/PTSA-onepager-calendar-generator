@@ -1,69 +1,140 @@
-# One-Page Calendar (WeasyPrint + Jinja)
+# Horace Mann PTSA Calendar Generator
 
-This starter lets you generate a single-page PDF calendar from CSV data using Python, Jinja templates, and WeasyPrint.
+A one-page PDF calendar generator for the 2025-26 school year that combines Lake Washington School District (LWSD) dates with PTSA-specific events. Creates a compact, print-ready Letter-size calendar using Python, Jinja2, and WeasyPrint.
 
-## Quick start
+## Live Calendar
 
-1) **Install system deps** (WeasyPrint uses Cairo, Pango, GDK-PixBuf):
-   - **macOS** (Homebrew):
-     ```bash
-     brew install pygobject3 cairo pango gdk-pixbuf libffi
-     ```
-   - **Ubuntu/Debian**:
-     ```bash
-     sudo apt-get update
-     sudo apt-get install -y python3-dev python3-pip libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
-     ```
+📅 **[View Current Calendar](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/)**  
+📄 **[Direct PDF Download](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/calendar.pdf)**
 
-2) **Create & activate a virtualenv**, then install Python deps:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
+## Features
 
-3) **Edit CSVs** under `data/` for district + PTSA-specific events.
-   - `events.csv` = district data
-   - `ptsa_events.csv` = school/PTSA data
+- **Single-page PDF** optimized for Letter-size printing
+- **Full school year** coverage (September 2025 - August 2026)
+- **Visual event indicators**:
+  - 🟥 Black background = No school days
+  - 🔲 Grey background = Half days  
+  - ⭕ Red circles = PTSA events
+  - ⬜ Square boxes = First/Last days
+  - **Bold** = Early release Wednesdays
+- **Automatic date consolidation** (e.g., "12/22-1/2" for Winter Break)
+- **PTSA branding** with red theme (#C40A0C)
 
-4) **Build the PDF**:
-   ```bash
-   python build.py --year 2025 --out build/LWSD-2025-26-onepage.pdf
-   ```
+## Quick Start
 
-5) Output appears under `build/`. The template renders 12 mini-months + a right-hand Important Dates + Legend.
+### 1. Install System Dependencies
 
----
+WeasyPrint requires system-level libraries:
 
-## CSV schema
-
-`data/events.csv` and `data/ptsa_events.csv` share the same columns:
-
+**macOS (Homebrew):**
+```bash
+brew install pygobject3 cairo pango gdk-pixbuf libffi
 ```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-dev python3-pip libcairo2 libpango-1.0-0 \
+  libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+```
+
+### 2. Setup Python Environment
+
+```bash
+# Create and activate virtual environment (REQUIRED)
+python3 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate      # Windows
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+### 3. Edit Event Data
+
+Modify CSV files in the `data/` directory:
+- `data/events.csv` - LWSD district dates (37 events)
+- `data/ptsa_events.csv` - PTSA-specific events (22 events)
+
+### 4. Generate Calendar
+
+```bash
+# Build the PDF
+python build.py --year 2025 --out build/HoraceMann-PTSA-2025-26.pdf
+
+# Open the result (macOS)
+open build/HoraceMann-PTSA-2025-26.pdf
+```
+
+## CSV Data Format
+
+Both event files use the same schema:
+
+```csv
 date,start_date,end_date,type,scope,label,notes
+2025-09-02,,,first_day_1_12,district,First Day (Grades 1-12),
+,2025-12-22,2026-01-02,no_school,district,Winter Break,
+2025-10-10,,,ptsa_event,ptsa,Fall Carnival,5-7pm
 ```
 
-- Use **either** `date` (single-day) **or** `start_date`+`end_date` (inclusive range). ISO format (`YYYY-MM-DD`).
-- `type` is a short token used for coloring/legend (e.g., `no_school`, `half_day`, `first_day`, `last_day`, `early_release`, `conf_elem`, etc.).
-- `scope` is `district` or `ptsa`. Data from `ptsa_events.csv` is automatically tagged `ptsa` if the column is left blank.
-- `label` is what appears in the Important Dates list.
-- `notes` are optional and can show in the Important Dates.
+- Use `date` for single-day events OR `start_date`+`end_date` for ranges
+- `type` determines visual styling (no_school, half_day, ptsa_event, etc.)
+- `scope` is either `district` or `ptsa`
+- `label` appears in the Important Dates section
 
-Examples in `data/*.csv` are placeholders—replace with your 2025–26 dates.
+## Customization
 
----
+### Styling
+Edit `styles/calendar.css` to modify:
+- Colors and themes
+- Font sizes and spacing
+- Page margins (currently 8pt for maximum content)
 
-## Theming
+### Templates
+Modify `templates/calendar.html` to change:
+- Header text and branding
+- Layout structure
+- Legend entries
 
-Edit `styles/calendar.css` and `templates/calendar.html` to adjust layout, fonts, and colors. Update the legend map & color tokens inside `build.py` if you add new `type`s.
+### Event Types
+Add new event types in `build.py`:
+- Update `TYPE_NORMALIZATION` dictionary
+- Add corresponding CSS classes
 
----
+## Automatic Deployment
 
-## GitHub Actions (optional)
+The included GitHub Actions workflow automatically:
+1. Builds the PDF on every push to `main`
+2. Deploys to GitHub Pages for easy sharing
+3. Creates a web viewer with download button
 
-The provided workflow (`.github/workflows/build.yml`) builds the PDF on every push to `main` and uploads it as a CI artifact. You can extend this to push to GitHub Pages or attach to a Release.
+After pushing changes, your calendar will be available at:
+- `https://[your-username].github.io/[repo-name]/calendar.pdf`
 
----
+## Project Structure
+
+```
+├── build.py                 # Main generator script
+├── data/
+│   ├── events.csv          # LWSD district dates
+│   └── ptsa_events.csv     # PTSA-specific events
+├── templates/
+│   ├── base.html           # HTML structure
+│   └── calendar.html       # Calendar layout
+├── styles/
+│   └── calendar.css        # All styling
+└── .github/
+    └── workflows/
+        └── build-and-deploy.yml  # CI/CD automation
+```
+
+## Notes
+
+- Early release Wednesdays are automatically marked starting Sept 10, 2025
+- Preschool events have been removed from district data
+- Virtual environment activation is REQUIRED for WeasyPrint to work
+- The calendar fits on a single Letter-size page when printed
 
 ## License
 
