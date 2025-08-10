@@ -5,8 +5,8 @@
   <div class="subtle">{{ header.subtitle }}</div>
 </div>
 
-<div class="layout">
-  <section class="year-grid">
+<div class="layout-col">
+  <section class="year-grid full-width">
     {% for m in months %}
     <article class="month">
       <header>
@@ -37,7 +37,15 @@
     {% endfor %}
   </section>
 
-  <aside class="sidebar">
+  <section class="below">
+    <section class="important">
+      <h3>Important Dates</h3>
+      <ul>
+        {% for e in important %}
+          <li><strong>{{ e.when }}</strong> — {{ e.label }}{% if e.notes %} <span class="subtle">({{ e.notes }})</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
     <section class="legend">
       <h3>Key</h3>
       <ul>
@@ -48,18 +56,11 @@
         <li><span class="chip ptsa_event"></span> PTSA Event</li>
       </ul>
     </section>
-    <section class="important">
-      <h3>Important Dates</h3>
-      <ul>
-        {% for e in important %}
-          <li><strong>{{ e.when }}</strong> — {{ e.label }}{% if e.notes %} <span class="subtle">({{ e.notes }})</span>{% endif %}</li>
-        {% endfor %}
-      </ul>
-    </section>
-    <div class="footer">
-      <div>Updated {{ meta.generated_at }}</div>
-      <div>{{ meta.source_note }}</div>
-    </div>
-  </aside>
+  </section>
+
+  <div class="footer">
+    <div>Updated {{ meta.generated_at }}</div>
+    <div>{{ meta.source_note }}</div>
+  </div>
 </div>
 {% endblock %}

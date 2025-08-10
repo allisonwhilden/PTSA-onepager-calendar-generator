@@ -37,14 +37,9 @@ html, body {
 }
 .subtle { color: var(--muted); }
 
-/* Use flex instead of CSS Grid for WeasyPrint compatibility */
-.layout {
-  display: flex;
-  gap: 10pt;
-  align-items: stretch;
-}
-.year-grid { /* left column */
-  flex: 2.35 1 0;
+/* Column layout: months block then below section */
+.layout-col { display: flex; flex-direction: column; gap: 10pt; }
+.year-grid.full-width {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gap);
@@ -53,8 +48,8 @@ html, body {
   border: 1pt solid #e5e7eb;
   border-radius: var(--radius);
   padding: 6pt;
-  /* three columns with two gaps in each row */
-  width: calc((100% - (2 * var(--gap))) / 3);
+  /* four columns with three gaps in each row */
+  width: calc((100% - (3 * var(--gap))) / 4);
   break-inside: avoid;
 }
 .month header {
@@ -98,16 +93,8 @@ html, body {
 .day.mark-ptsa_event { outline: 1pt solid var(--ptsa); }
 
 /* Right: Important Dates + Legend */
-.sidebar {
-  flex: 1 1 0;
-  border: 1pt solid #e5e7eb;
-  border-radius: var(--radius);
-  padding: 8pt;
-  display: flex;
-  flex-direction: column;
-  gap: 8pt;
-  break-inside: avoid;
-}
+.below { display: grid; grid-template-columns: 2fr 1fr; gap: 10pt; }
+.sidebar { display: none; }
 .legend h3, .important h3 { margin: 0 0 4pt 0; }
 .legend ul {
   list-style: none;
