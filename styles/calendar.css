@@ -105,6 +105,19 @@ html, body {
   color: #000;
 }
 
+/* Potential school day if closures occur: grey diagonal stripes */
+.day.mark-closure_possible {
+  /* Use a print-friendly repeating linear gradient */
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
+  color: #000;
+}
+
 .day.mark-first_day,
 .day.mark-first_day_1_12,
 .day.mark-first_day_k,
@@ -203,6 +216,17 @@ html, body {
 }
 .chip.half_day { 
   background: #ccc; 
+}
+
+/* Legend chip for potential school day (striped) */
+.chip.closure_possible {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
 }
 
 .symbol {

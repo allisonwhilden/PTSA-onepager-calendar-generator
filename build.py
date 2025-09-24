@@ -10,10 +10,15 @@ TYPE_NORMALIZATION = {
     "last_day": "last_day",
     "early_release": "early_release",
     "ptsa_event": "ptsa_event",
+    "closure_possible": "closure_possible",
     # aliases
     "first_day_1_12": "first_day",
     "first_day_k": "first_day",
     "holiday": "no_school",
+    # common alias names users might try
+    "closure_day": "closure_possible",
+    "possible_school_day": "closure_possible",
+    "potential_school_day": "closure_possible",
 }
 
 MONTH_NAMES = [calendar.month_name[i] for i in range(13)]
@@ -26,13 +31,9 @@ def read_events(csv_path):
         r = csv.DictReader(f)
         for raw in r:
             row = {k: (v.strip() if isinstance(v, str) else v) for k,v in raw.items()}
-            # normalize type/scope
+            # normalize type
             t = row.get("type") or ""
             row["type"] = TYPE_NORMALIZATION.get(t, t)
-            s = row.get("scope") or ""
-            if "ptsa" in csv_path and not s:
-                s = "ptsa"
-            row["scope"] = s or "district"
             rows.append(row)
     return rows
 
@@ -131,7 +132,7 @@ def make_month_cells(year, month, marks_for_day):
         for t in marks:
             if t in ("first_day", "last_day", "first_day_1_12", "first_day_k"):
                 style_marks.append(t)
-            elif t in ("no_school", "half_day", "early_release", "ptsa_event"):
+            elif t in ("no_school", "half_day", "early_release", "ptsa_event", "closure_possible"):
                 style_marks.append(t)
         style_marks = list(dict.fromkeys(style_marks))  # dedupe preserving order
         cells.append(type("Cell", (), {"day": d, "marks": style_marks, "is_weekend": is_weekend, "has_diamond": has_diamond, "has_circle": has_circle}))
@@ -154,16 +155,16 @@ def format_important_dates(expanded, months_span):
             continue
         label = row.get("label") or row.get("type")
         notes = row.get("notes") or ""
-        scope = row.get("scope") or ""
-        event_key = (label, notes, scope)
-        
+        event_type = row.get("type") or ""
+        event_key = (label, notes, event_type)
+
         if event_key not in event_groups:
             event_groups[event_key] = []
         event_groups[event_key].append(d)
     
     # Format events with date ranges
     result = []
-    for (label, notes, scope), dates in event_groups.items():
+    for (label, notes, event_type), dates in event_groups.items():
         dates = sorted(dates)
         
         # Check if dates are consecutive
@@ -206,14 +207,14 @@ def format_important_dates(expanded, months_span):
         when_str = when_str.lstrip("0").replace("/0", "/")
         
         # Add PTSA prefix for PTSA events
-        if scope == "ptsa":
+        if event_type == "ptsa_event":
             label = "PTSA: " + label
-        
+
         result.append({
             "when": when_str,
             "label": label,
             "notes": notes,
-            "is_ptsa": scope == "ptsa",
+            "is_ptsa": event_type == "ptsa_event",
             "sort_date": dates[0]  # For sorting purposes
         })
     
@@ -226,10 +227,8 @@ def format_important_dates(expanded, months_span):
     
     return result
 
-def build_context(year_start, events_paths):
-    rows = []
-    for p in events_paths:
-        rows.extend(read_events(p))
+def build_context(year_start, events_path):
+    rows = read_events(events_path)
     expanded = expand_events(rows)
     buckets = bucket_by_month(expanded, year_start)
     months_span = school_year_months(year_start)
@@ -267,7 +266,7 @@ def main():
     parser.add_argument("--template", type=str, default="calendar.html")
     parser.add_argument("--templates_dir", type=str, default="templates")
     parser.add_argument("--styles", type=str, nargs="*", default=["styles/calendar.css"])
-    parser.add_argument("--data", type=str, nargs="*", default=["data/events.csv", "data/ptsa_events.csv"])
+    parser.add_argument("--data", type=str, default="data/all_events.csv", help="Path to CSV file with all events")
     args = parser.parse_args()
 
     ctx = build_context(args.year, args.data)
