@@ -122,4 +122,7 @@ export const TYPE_NORMALIZATION: Record<string, EventType> = {
   closure_day: 'closure_possible',
   possible_school_day: 'closure_possible',
   potential_school_day: 'closure_possible',
+  // Additional types from CSV (map to closest equivalent)
+  kinder_family_conn: 'half_day',
+  grades_due: 'no_school', // Skip these - they're informational, not calendar marks
 };

@@ -1,10 +1,7 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { put, head, del } from '@vercel/blob';
 import { EventsStore, CalendarEvent } from '../calendar/types';
 
-// Path to events JSON file (in data directory)
-const DATA_DIR = path.join(process.cwd(), 'data');
-const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+const BLOB_FILENAME = 'events.json';
 
 // Default empty store
 function createEmptyStore(schoolYear: number = 2025): EventsStore {
@@ -15,35 +12,49 @@ function createEmptyStore(schoolYear: number = 2025): EventsStore {
   };
 }
 
-// Ensure data directory exists
-async function ensureDataDir(): Promise<void> {
-  try {
-    await fs.access(DATA_DIR);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  }
-}
-
-// Read events from JSON file
+// Read events from Vercel Blob
 export async function getEvents(): Promise<EventsStore> {
   try {
-    await ensureDataDir();
-    const data = await fs.readFile(EVENTS_FILE, 'utf-8');
-    return JSON.parse(data) as EventsStore;
-  } catch (error) {
-    // File doesn't exist, return empty store
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    // Check if blob exists
+    const blobInfo = await head(BLOB_FILENAME).catch(() => null);
+
+    if (!blobInfo) {
       return createEmptyStore();
     }
-    throw error;
+
+    // Fetch the blob content
+    const response = await fetch(blobInfo.url);
+    if (!response.ok) {
+      return createEmptyStore();
+    }
+
+    const data = await response.json();
+    return data as EventsStore;
+  } catch (error) {
+    console.error('Error reading events from blob:', error);
+    return createEmptyStore();
   }
 }
 
-// Save events to JSON file
+// Save events to Vercel Blob
 export async function saveEvents(store: EventsStore): Promise<void> {
-  await ensureDataDir();
   store.lastModified = new Date().toISOString();
-  await fs.writeFile(EVENTS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+
+  // Delete old blob if exists (Vercel Blob doesn't support overwrite)
+  try {
+    const blobInfo = await head(BLOB_FILENAME).catch(() => null);
+    if (blobInfo) {
+      await del(blobInfo.url);
+    }
+  } catch {
+    // Ignore delete errors
+  }
+
+  // Upload new blob
+  await put(BLOB_FILENAME, JSON.stringify(store, null, 2), {
+    access: 'public',
+    addRandomSuffix: false,
+  });
 }
 
 // Add a single event
