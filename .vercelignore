@@ -1,0 +1,11 @@
+# Beads issue tracking
+.beads/
+
+# Serena
+.serena/
+
+# Python files (not needed for Next.js)
+python/
+
+# Local data
+data/events.json
