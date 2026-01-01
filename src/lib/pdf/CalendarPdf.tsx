@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    height: 11,  // Was 12, matching WeasyPrint 11pt
+    height: 13,  // Increased from 11 to match WeasyPrint 11pt + 2pt padding
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -104,6 +104,7 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 6.5,  // Was 6, matching WeasyPrint 6.5pt
     textAlign: 'center',
+    fontWeight: 'light',  // Added to increase contrast with bold
   },
   dayTextBold: {
     fontSize: 6.5,
@@ -114,11 +115,13 @@ const styles = StyleSheet.create({
     fontSize: 6.5,
     textAlign: 'center',
     color: '#fff',
+    fontWeight: 'light',  // Added for consistency
   },
   dayTextWeekend: {
     fontSize: 6.5,
     textAlign: 'center',
     color: WEEKEND_COLOR,
+    fontWeight: 'light',  // Added for consistency
   },
   // Legend - matching WeasyPrint
   legend: {
@@ -148,8 +151,7 @@ const styles = StyleSheet.create({
   },
   // Important dates - 2 columns (matching WeasyPrint)
   importantDates: {
-    flex: 1,
-    paddingTop: 4,
+    paddingTop: 4,  // Removed flex: 1 to prevent expansion
   },
   importantDatesColumns: {
     flexDirection: 'row',
@@ -160,7 +162,7 @@ const styles = StyleSheet.create({
   },
   importantDateItem: {
     flexDirection: 'row',
-    paddingVertical: 1,
+    paddingVertical: 0.5,  // Reduced from 1 for tighter spacing
     paddingHorizontal: 2,
   },
   ptsaBar: {
@@ -172,11 +174,13 @@ const styles = StyleSheet.create({
     fontSize: 6.5,  // Was 5.5, matching WeasyPrint 6.5pt
     flex: 1,
     color: DISTRICT_TEXT,  // Grey for district events
+    lineHeight: 1.2,  // Added to match WeasyPrint
   },
   importantDateTextPtsa: {
     fontSize: 6.5,
     color: PTSA_RED,
     flex: 1,
+    lineHeight: 1.2,  // Added to match WeasyPrint
   },
   importantDateWhen: {
     fontWeight: 'bold',
@@ -273,11 +277,14 @@ export function CalendarPdf({
             </View>
             <Text style={styles.legendText}>First/Last</Text>
           </View>
-          {/* PTSA - circle with "1" */}
+          {/* PTSA - circle with "1" inside */}
           <View style={styles.legendItem}>
-            <Svg width={12} height={12} viewBox="0 0 12 12" style={{ marginRight: 3 }}>
-              <Circle cx="6" cy="6" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
-            </Svg>
+            <View style={{ width: 12, height: 12, marginRight: 3, position: 'relative' }}>
+              <Svg width={12} height={12} viewBox="0 0 12 12" style={{ position: 'absolute' }}>
+                <Circle cx="6" cy="6" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+              </Svg>
+              <Text style={{ position: 'absolute', width: 12, height: 12, textAlign: 'center', fontSize: 5, lineHeight: 12 }}>1</Text>
+            </View>
             <Text style={styles.legendText}>PTSA</Text>
           </View>
           {/* Early Release - Bold text */}
@@ -400,22 +407,23 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (isClosure && !isNoSchool && !isHalfDay) {
     return (
       <View style={styles.dayCell}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
-          <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
+        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
+          <Rect x="0" y="0" width="20" height="13" fill={LIGHT_GREY} />
           <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="1" />
           <Line x1="0" y1="4" x2="4" y2="0" stroke="#fff" strokeWidth="1" />
           <Line x1="0" y1="6" x2="6" y2="0" stroke="#fff" strokeWidth="1" />
           <Line x1="0" y1="8" x2="8" y2="0" stroke="#fff" strokeWidth="1" />
           <Line x1="0" y1="10" x2="10" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="2" y1="11" x2="12" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="4" y1="11" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="6" y1="11" x2="16" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="8" y1="11" x2="18" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="10" y1="11" x2="20" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="12" y1="11" x2="20" y2="2" stroke="#fff" strokeWidth="1" />
-          <Line x1="14" y1="11" x2="20" y2="4" stroke="#fff" strokeWidth="1" />
-          <Line x1="16" y1="11" x2="20" y2="6" stroke="#fff" strokeWidth="1" />
-          <Line x1="18" y1="11" x2="20" y2="8" stroke="#fff" strokeWidth="1" />
+          <Line x1="0" y1="12" x2="12" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="2" y1="13" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="4" y1="13" x2="16" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="6" y1="13" x2="18" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="8" y1="13" x2="20" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="10" y1="13" x2="20" y2="2" stroke="#fff" strokeWidth="1" />
+          <Line x1="12" y1="13" x2="20" y2="4" stroke="#fff" strokeWidth="1" />
+          <Line x1="14" y1="13" x2="20" y2="6" stroke="#fff" strokeWidth="1" />
+          <Line x1="16" y1="13" x2="20" y2="8" stroke="#fff" strokeWidth="1" />
+          <Line x1="18" y1="13" x2="20" y2="10" stroke="#fff" strokeWidth="1" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
@@ -427,8 +435,8 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (hasCircle && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
-          <Circle cx="10" cy="5.5" r="5.5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
+          <Circle cx="10" cy="6.5" r="5.5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
         </Svg>
         <Text style={isEarlyRelease ? styles.dayTextBold : styles.dayText}>{day}</Text>
       </View>
@@ -439,8 +447,8 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (hasDiamond && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
-          <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
+          <Rect x="4" y="2" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
         </Svg>
         <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
