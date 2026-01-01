@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    height: 13,  // Increased from 11 to match WeasyPrint 11pt + 2pt padding
+    height: 11,  // Back to 11pt to fit on single page
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -404,22 +404,44 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   else if (isWeekend) textStyle = styles.dayTextWeekend;
   else if (isEarlyRelease && !isPtsa) textStyle = styles.dayTextBold;
 
+  // For half-day, show solid grey background using SVG for edge-to-edge fill
+  if (isHalfDay && !isNoSchool && !isClosure) {
+    return (
+      <View style={styles.dayCell}>
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Rect x="0" y="0" width="20" height="11" fill={GREY_BG} />
+        </Svg>
+        {hasDiamond && (
+          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+            <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
+          </Svg>
+        )}
+        {hasCircle && (
+          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+            <Circle cx="10" cy="5.5" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+          </Svg>
+        )}
+        <Text style={hasDiamond ? { ...textStyle, fontWeight: 'bold' } : (isEarlyRelease ? styles.dayTextBold : textStyle)}>{day}</Text>
+        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
+      </View>
+    );
+  }
+
   // For closure/make-up days, show striped pattern with extended lines
   if (isClosure && !isNoSchool && !isHalfDay) {
     return (
       <View style={styles.dayCell}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
-          <Rect x="0" y="0" width="20" height="13" fill={LIGHT_GREY} />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
           {/* Extended lines that go beyond viewBox for edge-to-edge coverage */}
           <Line x1="-4" y1="4" x2="4" y2="-4" stroke="#fff" strokeWidth="1.5" />
           <Line x1="-4" y1="8" x2="8" y2="-4" stroke="#fff" strokeWidth="1.5" />
           <Line x1="-4" y1="12" x2="12" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-4" y1="16" x2="16" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="0" y1="16" x2="20" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="4" y1="16" x2="24" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="8" y1="16" x2="24" y2="0" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="12" y1="16" x2="24" y2="4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="16" y1="16" x2="24" y2="8" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="0" y1="14" x2="14" y2="-2" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="4" y1="14" x2="18" y2="-2" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="8" y1="14" x2="22" y2="-2" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="12" y1="14" x2="22" y2="2" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="16" y1="14" x2="22" y2="6" stroke="#fff" strokeWidth="1.5" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
@@ -431,8 +453,8 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (hasCircle && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
-          <Circle cx="10" cy="6.5" r="5.5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Circle cx="10" cy="5.5" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
         </Svg>
         <Text style={isEarlyRelease ? styles.dayTextBold : styles.dayText}>{day}</Text>
       </View>
@@ -443,8 +465,8 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (hasDiamond && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
-          <Rect x="4" y="2" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
         </Svg>
         <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
