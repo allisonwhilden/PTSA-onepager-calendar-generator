@@ -27,25 +27,30 @@ import {
   parseDate,
 } from '../calendar/utils';
 
-// Color constants
+// Color constants - matching WeasyPrint CSS
 const PTSA_RED = '#C40A0C';
-const GREY_BG = '#cccccc';
-const LIGHT_GREY = '#e5e5e5';
-const WEEKEND_COLOR = '#888888';
+const GREY_BG = '#ccc';
+const LIGHT_GREY = '#d9d9d9';  // Was #e5e5e5
+const WEEKEND_COLOR = '#999';  // Was #888888
 const CELL_BORDER = '#ddd';
+const DISTRICT_TEXT = '#555';
+const FOOTER_COLOR = '#888';  // Was #666
+const DAY_HEADER_COLOR = '#666';
 
-// Create styles
+// Create styles - matching WeasyPrint CSS values
 const styles = StyleSheet.create({
   page: {
-    padding: 14,
+    padding: 18,  // Was 14, matching WeasyPrint 18pt margin
     fontFamily: 'Helvetica',
-    fontSize: 7,
+    fontSize: 7.5,  // Was 7, matching WeasyPrint 7.5pt
   },
   header: {
+    paddingTop: 6,
+    paddingBottom: 8,
     marginBottom: 8,
   },
   title: {
-    fontSize: 14,
+    fontSize: 12,  // Was 14, matching WeasyPrint 12pt
     fontWeight: 'bold',
   },
   titleAccent: {
@@ -54,26 +59,34 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
+  // Month container - 3 columns (33.33%) instead of 4 (25%)
   monthContainer: {
-    width: '25%',
-    paddingHorizontal: 3,
-    paddingVertical: 2,
+    width: '32.5%',  // Was 25%, matching WeasyPrint 32.5%
+    marginBottom: 6,
   },
   monthName: {
     textAlign: 'center',
-    fontSize: 8,
+    fontSize: 7,  // Was 8, matching WeasyPrint 7pt
     fontWeight: 'bold',
-    marginBottom: 3,
+    marginBottom: 2,  // Was 3, matching WeasyPrint 2pt
+    paddingVertical: 2,
+    paddingHorizontal: 4,
   },
   dayNamesRow: {
     flexDirection: 'row',
+    borderBottomWidth: 0.5,  // Added underline
+    borderBottomColor: CELL_BORDER,
+    marginBottom: 1,
   },
   dayName: {
     width: '14.28%',
     textAlign: 'center',
-    fontSize: 5,
+    fontSize: 5.5,  // Was 5, matching WeasyPrint 5.5pt
     fontWeight: 'bold',
+    color: DAY_HEADER_COLOR,  // Added grey color
     paddingBottom: 2,
   },
   weekRow: {
@@ -81,39 +94,40 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.28%',
-    height: 12,
+    height: 11,  // Was 12, matching WeasyPrint 11pt
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    borderWidth: 0.25,
+    borderWidth: 0.5,  // Was 0.25, matching WeasyPrint 0.5pt
     borderColor: CELL_BORDER,
   },
   dayText: {
-    fontSize: 6,
+    fontSize: 6.5,  // Was 6, matching WeasyPrint 6.5pt
     textAlign: 'center',
   },
   dayTextBold: {
-    fontSize: 6,
+    fontSize: 6.5,
     textAlign: 'center',
-    fontWeight: 'bold',
+    fontWeight: 'heavy',  // font-weight: 900 in CSS
   },
   dayTextWhite: {
-    fontSize: 6,
+    fontSize: 6.5,
     textAlign: 'center',
     color: '#fff',
   },
   dayTextWeekend: {
-    fontSize: 6,
+    fontSize: 6.5,
     textAlign: 'center',
     color: WEEKEND_COLOR,
   },
-  // Legend
+  // Legend - matching WeasyPrint
   legend: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 4,  // Was 8, matching WeasyPrint 4pt
+    marginBottom: 4,  // Was 8
     paddingVertical: 6,
   },
   legendItem: {
@@ -121,60 +135,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 10,
   },
-  legendBox: {
-    width: 12,
-    height: 12,
-    marginRight: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+  // Legend chip - 6pt box with black border (matching WeasyPrint)
+  legendChip: {
+    width: 6,  // Was 12
+    height: 6,
+    borderWidth: 0.5,
+    borderColor: '#000',
+    marginRight: 3,
   },
   legendText: {
-    fontSize: 6,
+    fontSize: 6.5,  // Was 6, matching WeasyPrint 6.5pt
   },
-  // Important dates
+  // Important dates - 2 columns (matching WeasyPrint)
   importantDates: {
     flex: 1,
-    marginTop: 4,
+    paddingTop: 4,
   },
   importantDatesColumns: {
     flexDirection: 'row',
   },
   importantDatesColumn: {
-    width: '25%',
-    paddingHorizontal: 4,
+    width: '50%',  // Was 25%, matching WeasyPrint 2-column layout
+    paddingHorizontal: 8,
   },
   importantDateItem: {
     flexDirection: 'row',
-    marginBottom: 3,
+    paddingVertical: 1,
+    paddingHorizontal: 2,
   },
   ptsaBar: {
-    width: 2,
+    width: 1.5,  // Was 2, matching WeasyPrint 1.5pt
     backgroundColor: PTSA_RED,
     marginRight: 3,
   },
   importantDateText: {
-    fontSize: 5.5,
+    fontSize: 6.5,  // Was 5.5, matching WeasyPrint 6.5pt
     flex: 1,
+    color: DISTRICT_TEXT,  // Grey for district events
   },
   importantDateTextPtsa: {
-    fontSize: 5.5,
+    fontSize: 6.5,
     color: PTSA_RED,
     flex: 1,
   },
-  // Footer
+  importantDateWhen: {
+    fontWeight: 'bold',
+  },
+  // Footer - matching WeasyPrint
   footer: {
     position: 'absolute',
-    bottom: 10,
-    left: 14,
-    right: 14,
+    bottom: 18,
+    left: 18,
+    right: 18,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    fontSize: 5,
-    color: '#666',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: 5.5,  // Was 5
+    color: FOOTER_COLOR,
+    paddingTop: 6,
+    marginTop: 6,
   },
 });
 
-const DAY_NAMES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+// Day names - title case (Su, Mo, Tu...) matching WeasyPrint
+const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 interface CalendarPdfProps {
   events: CalendarEvent[];
@@ -197,14 +221,16 @@ export function CalendarPdf({
 
   const importantDates = generateImportantDates(events);
 
-  // Split important dates into 4 columns
-  const columnSize = Math.ceil(importantDates.length / 4);
+  // Split important dates into 2 columns (matching WeasyPrint)
+  const half = Math.ceil((importantDates.length + 1) / 2);
   const columns = [
-    importantDates.slice(0, columnSize),
-    importantDates.slice(columnSize, columnSize * 2),
-    importantDates.slice(columnSize * 2, columnSize * 3),
-    importantDates.slice(columnSize * 3),
+    importantDates.slice(0, half),
+    importantDates.slice(half),
   ];
+
+  // Format date for footer
+  const now = new Date();
+  const footerDate = `${now.toLocaleString('en-US', { month: 'short' })} ${String(now.getDate()).padStart(2, '0')}, ${now.getFullYear()}`;
 
   return (
     <Document>
@@ -212,69 +238,72 @@ export function CalendarPdf({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>
-            Horace Mann <Text style={styles.titleAccent}>PTSA</Text> | {schoolYear}-{(schoolYear + 1) % 100} Calendar
+            Horace Mann <Text style={styles.titleAccent}>PTSA</Text> | {schoolYear}-{String((schoolYear + 1) % 100).padStart(2, '0')} Calendar
           </Text>
         </View>
 
-        {/* Calendar Grid - 4 columns x 3 rows */}
+        {/* Calendar Grid - 3 columns x 4 rows (matching WeasyPrint) */}
         <View style={styles.calendarGrid}>
           {months.map((month) => (
             <MonthView key={`${month.year}-${month.month}`} month={month} />
           ))}
         </View>
 
-        {/* Legend */}
+        {/* Legend - matching WeasyPrint structure */}
         <View style={styles.legend}>
+          {/* No School - black chip */}
           <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: '#000' }]}>
-              <Text style={{ color: '#fff', fontSize: 6 }}>1</Text>
-            </View>
+            <View style={[styles.legendChip, { backgroundColor: '#000' }]} />
             <Text style={styles.legendText}>No School</Text>
           </View>
+          {/* Half Day - grey chip */}
           <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: GREY_BG }]}>
-              <Text style={{ fontSize: 6 }}>1</Text>
-            </View>
+            <View style={[styles.legendChip, { backgroundColor: GREY_BG }]} />
             <Text style={styles.legendText}>Half Day</Text>
           </View>
+          {/* Make-up - striped chip */}
           <View style={styles.legendItem}>
-            <View style={styles.legendBox}>
-              <Text style={{ fontSize: 6, fontWeight: 'bold' }}>1</Text>
+            <StripedChip />
+            <Text style={styles.legendText}>Make-up</Text>
+          </View>
+          {/* First/Last - diamond box with "1" */}
+          <View style={styles.legendItem}>
+            <View style={{ borderWidth: 0.75, borderColor: '#000', paddingHorizontal: 1, marginRight: 3 }}>
+              <Text style={{ fontSize: 5, fontWeight: 'bold' }}>1</Text>
             </View>
-            <Text style={styles.legendText}>Early Release</Text>
+            <Text style={styles.legendText}>First/Last</Text>
           </View>
+          {/* PTSA - circle with "1" */}
           <View style={styles.legendItem}>
-            <Svg width={14} height={14} viewBox="0 0 14 14">
-              <Circle cx="7" cy="7" r="6" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+            <Svg width={12} height={12} viewBox="0 0 12 12" style={{ marginRight: 3 }}>
+              <Circle cx="6" cy="6" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
             </Svg>
-            <Text style={[styles.legendText, { marginLeft: 4 }]}>PTSA Event</Text>
+            <Text style={styles.legendText}>PTSA</Text>
           </View>
+          {/* Early Release - Bold text */}
           <View style={styles.legendItem}>
-            <Svg width={14} height={14} viewBox="0 0 14 14">
-              <Rect x="1" y="1" width="12" height="12" stroke="#000" strokeWidth="1" fill="none" />
-            </Svg>
-            <Text style={[styles.legendText, { marginLeft: 4 }]}>First/Last Day</Text>
+            <Text style={{ fontWeight: 'heavy', fontSize: 6.5, marginRight: 3 }}>Bold</Text>
+            <Text style={styles.legendText}>=Early Release</Text>
           </View>
+          {/* Asterisk */}
           <View style={styles.legendItem}>
-            <StripedBox />
-            <Text style={[styles.legendText, { marginLeft: 4 }]}>Make-up Day</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <Text style={{ fontSize: 8 }}>*</Text>
-            <Text style={[styles.legendText, { marginLeft: 2 }]}>=See Dates</Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 7, marginRight: 3 }}>*</Text>
+            <Text style={styles.legendText}>=See Dates</Text>
           </View>
         </View>
 
-        {/* Important Dates */}
+        {/* Important Dates - 2 columns (matching WeasyPrint) */}
         <View style={styles.importantDates}>
           <View style={styles.importantDatesColumns}>
             {columns.map((column, colIndex) => (
               <View key={colIndex} style={styles.importantDatesColumn}>
                 {column.map((date, i) => (
-                  <View key={i} style={styles.importantDateItem}>
-                    {date.isPtsa && <View style={styles.ptsaBar} />}
+                  <View key={i} style={[
+                    styles.importantDateItem,
+                    date.isPtsa ? { borderLeftWidth: 1.5, borderLeftColor: PTSA_RED, paddingLeft: 3 } : {}
+                  ]}>
                     <Text style={date.isPtsa ? styles.importantDateTextPtsa : styles.importantDateText}>
-                      {date.when} {date.label}
+                      <Text style={styles.importantDateWhen}>{date.when}</Text> {date.label}
                     </Text>
                   </View>
                 ))}
@@ -283,31 +312,29 @@ export function CalendarPdf({
           </View>
         </View>
 
-        {/* Footer */}
+        {/* Footer - matching WeasyPrint content */}
         <View style={styles.footer}>
-          <Text>* See district calendar for details</Text>
-          <Text>horacemann.my.lwsd.org</Text>
-          <Text>Generated {new Date().toLocaleDateString()}</Text>
+          <Text>Updated {footerDate}</Text>
+          <Text style={{ color: '#aaa', marginHorizontal: 4 }}>|</Text>
+          <Text>Calendar subject to change</Text>
+          <Text style={{ color: '#aaa', marginHorizontal: 4 }}>|</Text>
+          <Text>School year may extend due to weather closures</Text>
         </View>
       </Page>
     </Document>
   );
 }
 
-// Striped box for make-up days (light grey and white stripes)
-function StripedBox() {
+// Striped chip for legend (6pt box with diagonal stripes)
+function StripedChip() {
   return (
-    <Svg width={14} height={14} viewBox="0 0 14 14">
-      <Rect x="0" y="0" width="14" height="14" fill={LIGHT_GREY} />
-      <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="1" />
-      <Line x1="0" y1="5" x2="5" y2="0" stroke="#fff" strokeWidth="1" />
-      <Line x1="0" y1="8" x2="8" y2="0" stroke="#fff" strokeWidth="1" />
-      <Line x1="0" y1="11" x2="11" y2="0" stroke="#fff" strokeWidth="1" />
-      <Line x1="0" y1="14" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
-      <Line x1="3" y1="14" x2="14" y2="3" stroke="#fff" strokeWidth="1" />
-      <Line x1="6" y1="14" x2="14" y2="6" stroke="#fff" strokeWidth="1" />
-      <Line x1="9" y1="14" x2="14" y2="9" stroke="#fff" strokeWidth="1" />
-      <Line x1="12" y1="14" x2="14" y2="12" stroke="#fff" strokeWidth="1" />
+    <Svg width={6} height={6} viewBox="0 0 6 6" style={{ marginRight: 3, borderWidth: 0.5, borderColor: '#000' }}>
+      <Rect x="0" y="0" width="6" height="6" fill={LIGHT_GREY} />
+      <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="0.5" />
+      <Line x1="0" y1="4" x2="4" y2="0" stroke="#fff" strokeWidth="0.5" />
+      <Line x1="0" y1="6" x2="6" y2="0" stroke="#fff" strokeWidth="0.5" />
+      <Line x1="2" y1="6" x2="6" y2="2" stroke="#fff" strokeWidth="0.5" />
+      <Line x1="4" y1="6" x2="6" y2="4" stroke="#fff" strokeWidth="0.5" />
     </Svg>
   );
 }
@@ -369,50 +396,54 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   else if (isWeekend) textStyle = styles.dayTextWeekend;
   else if (isEarlyRelease && !isPtsa) textStyle = styles.dayTextBold;
 
-  // For closure/make-up days, show striped pattern (light grey + white)
+  // For closure/make-up days, show striped pattern
   if (isClosure && !isNoSchool && !isHalfDay) {
     return (
       <View style={styles.dayCell}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 12" style={{ position: 'absolute' }}>
-          <Rect x="0" y="0" width="20" height="12" fill={LIGHT_GREY} />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
           <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="5" x2="5" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="0" y1="4" x2="4" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="0" y1="6" x2="6" y2="0" stroke="#fff" strokeWidth="1" />
           <Line x1="0" y1="8" x2="8" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="11" x2="11" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="2" y1="12" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="5" y1="12" x2="17" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="8" y1="12" x2="20" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="11" y1="12" x2="20" y2="3" stroke="#fff" strokeWidth="1" />
-          <Line x1="14" y1="12" x2="20" y2="6" stroke="#fff" strokeWidth="1" />
-          <Line x1="17" y1="12" x2="20" y2="9" stroke="#fff" strokeWidth="1" />
+          <Line x1="0" y1="10" x2="10" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="2" y1="11" x2="12" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="4" y1="11" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="6" y1="11" x2="16" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="8" y1="11" x2="18" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="10" y1="11" x2="20" y2="0" stroke="#fff" strokeWidth="1" />
+          <Line x1="12" y1="11" x2="20" y2="2" stroke="#fff" strokeWidth="1" />
+          <Line x1="14" y1="11" x2="20" y2="4" stroke="#fff" strokeWidth="1" />
+          <Line x1="16" y1="11" x2="20" y2="6" stroke="#fff" strokeWidth="1" />
+          <Line x1="18" y1="11" x2="20" y2="8" stroke="#fff" strokeWidth="1" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 5 }}>*</Text>}
+        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
       </View>
     );
   }
 
-  // For PTSA events, show circle
+  // For PTSA events, show circle (12pt diameter)
   if (hasCircle && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 12" style={{ position: 'absolute' }}>
-          <Circle cx="10" cy="6" r="5.5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Circle cx="10" cy="5.5" r="5.5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
         </Svg>
         <Text style={isEarlyRelease ? styles.dayTextBold : styles.dayText}>{day}</Text>
       </View>
     );
   }
 
-  // For first/last days, show SQUARE (not diamond)
+  // For first/last days, show square box around number
   if (hasDiamond && !isNoSchool) {
     return (
       <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 12" style={{ position: 'absolute' }}>
-          <Rect x="3" y="0.5" width="14" height="11" stroke="#000" strokeWidth="0.75" fill="none" />
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
         </Svg>
-        <Text style={textStyle}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 5 }}>*</Text>}
+        <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}</Text>
+        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
       </View>
     );
   }
@@ -420,7 +451,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   return (
     <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
       <Text style={textStyle}>{day}</Text>
-      {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 5 }}>*</Text>}
+      {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
     </View>
   );
 }
