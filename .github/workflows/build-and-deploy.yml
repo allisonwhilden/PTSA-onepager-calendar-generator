@@ -25,15 +25,14 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+          sudo apt-get install -y python3-dev libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Build PDF
         run: |
-          python build.py --year 2025 --out /tmp/LWSD-2025-26-onepage.pdf
-          cp /tmp/LWSD-2025-26-onepage.pdf /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
+          python build.py --year 2025 --data data/all_events.csv --out /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

@@ -39,10 +39,10 @@ pip install -r requirements.txt
 source .venv/bin/activate
 
 # Generate PDF for 2025-26 school year
-python build.py --year 2025 --out build/LWSD-2025-26-onepage.pdf
+python build.py --year 2025 --data data/all_events.csv --out build/HoraceMann-PTSA-2025-26-Calendar.pdf
 
 # Open the generated PDF (macOS)
-open build/LWSD-2025-26-onepage.pdf
+open build/HoraceMann-PTSA-2025-26-Calendar.pdf
 ```
 
 ## Architecture
@@ -57,9 +57,8 @@ open build/LWSD-2025-26-onepage.pdf
    - Removal of leading zeros from dates for cleaner display
 
 2. **Data Files**:
-   - `data/events.csv`: 37 LWSD district dates (after preschool removal)
-   - `data/ptsa_events.csv`: 22 PTSA-specific events
-   - Both files use same CSV schema (see below)
+   - `data/all_events.csv`: Single CSV file containing all 57 events (district + PTSA combined)
+   - Events are distinguished by type field (ptsa_event for PTSA events)
 
 3. **Visual Styling** (`styles/calendar.css`):
    - Red theme (#C40A0C) for PTSA branding
@@ -69,20 +68,21 @@ open build/LWSD-2025-26-onepage.pdf
 
 ### Data Schema
 
-CSV format for both event files:
+CSV format for event file:
 ```csv
-date,start_date,end_date,type,scope,label,notes
-2025-09-02,,,first_day_1_12,district,First Day (Grades 1-12),
-,2025-12-22,2026-01-02,no_school,district,Winter Break,
-2025-10-10,,,ptsa_event,ptsa,Fall Carnival,5-7pm
+date,start_date,end_date,type,label,notes
+2025-09-02,,,first_day,First Day (Grades 1-12),
+,2025-12-22,2026-01-02,no_school,Winter Break,
+2025-10-10,,,ptsa_event,Picture Day,
 ```
 
 ### Key Functions in build.py
 
-- `bucket_by_month()`: Enhanced to auto-mark early release Wednesdays
-- `consolidated_important_dates()`: New function for date range formatting
-- `generate_calendar_months()`: Adds diamond/circle marking logic
-- `format_important_dates()`: Sorts and prefixes PTSA events
+- `bucket_by_month()`: Collects events and auto-marks early release Wednesdays
+- `make_month_cells()`: Creates calendar grid cells with diamond/circle marking
+- `format_important_dates()`: Consolidates date ranges, sorts and prefixes PTSA events
+- `format_date_short()`: Formats dates as M/D without leading zeros
+- `Cell` dataclass: Represents day cells with `show_asterisk` property for complex display logic
 
 ### Template Enhancements
 
@@ -114,12 +114,12 @@ Note: Enable GitHub Pages in repo settings (Settings → Pages → Source: gh-pa
 ## Testing & Debugging
 
 ```bash
-# Run linting/type checking if available
-npm run lint      # If configured
-npm run typecheck # If configured
+# Test the build
+source .venv/bin/activate
+python build.py --year 2025 --data data/all_events.csv --out build/test.pdf
 
-# Generate debug HTML without PDF conversion
-python debug_html.py  # Creates build/debug.html for inspection
+# Open in browser for visual inspection
+open build/test.pdf
 ```
 
 ## Project-Specific Notes

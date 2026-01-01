@@ -9,10 +9,7 @@
   <section class="year-grid full-width">
     {% for m in months %}
     <article class="month">
-      <header>
-        <div>{{ m.name }} {{ m.year }}</div>
-        <div class="subtle">{{ m.note or "" }}</div>
-      </header>
+      <header>{{ m.name }} {{ m.year }}</header>
       <table class="month-grid" aria-hidden="true">
         <thead>
           <tr class="dow">
@@ -27,7 +24,7 @@
                 <td class="day empty"></td>
               {% else %}
                 <td class="day{% if c.is_weekend %} weekend{% endif %}{% for t in c.marks %} mark-{{ t }}{% endfor %}{% if c.has_diamond %} diamond{% endif %}{% if c.has_circle %} circle{% endif %}">
-                  {% if c.has_diamond or c.has_circle %}<span>{{ c.day }}</span>{% else %}{{ c.day }}{% endif %}{% if "no_school" not in c.marks and "half_day" not in c.marks and "early_release" not in c.marks %}{% if "first_day" in c.marks or "last_day" in c.marks %}{% if c.has_diamond or c.has_circle %} {% endif %}*{% elif "ptsa_event" not in c.marks and c.marks %}*{% endif %}{% elif "no_school" not in c.marks and "half_day" not in c.marks and c.marks|length > 1 and "early_release" in c.marks and "ptsa_event" not in c.marks %}*{% endif %}
+                  {% if c.has_diamond or c.has_circle %}<span>{{ c.day }}</span>{% else %}{{ c.day }}{% endif %}{% if c.show_asterisk %}*{% endif %}
                 </td>
               {% endif %}
             {% endfor %}
@@ -55,8 +52,8 @@
           <li><span class="chip no_school"></span> No School</li>
           <li><span class="chip half_day"></span> Half Day</li>
           <li><span class="chip closure_possible"></span> School Closure Make-up (if needed)</li>
-          <li><span style="border: 1pt solid #000; padding: 0.5pt 2pt; display: inline-block;">1</span> First/Last Day</li>
-          <li><span style="border: 0.75pt solid #C40A0C; border-radius: 50%; width: 10pt; height: 10pt; line-height: 10pt; text-align: center; display: inline-block;">1</span> PTSA Event</li>
+          <li><span class="legend-diamond">1</span> First/Last Day</li>
+          <li><span class="legend-circle">1</span> PTSA Event</li>
           <li><b>Bold</b> = Early Release Wed</li>
           <li><span class="symbol">*</span> Check Important Dates</li>
         </ul>

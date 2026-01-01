@@ -53,34 +53,32 @@ pip install -r requirements.txt
 
 ### 3. Edit Event Data
 
-Modify CSV files in the `data/` directory:
-- `data/events.csv` - LWSD district dates (37 events)
-- `data/ptsa_events.csv` - PTSA-specific events (22 events)
+Modify the CSV file in the `data/` directory:
+- `data/all_events.csv` - Combined file with all LWSD district dates and PTSA events (57 total events)
 
 ### 4. Generate Calendar
 
 ```bash
 # Build the PDF
-python build.py --year 2025 --out build/HoraceMann-PTSA-2025-26.pdf
+python build.py --year 2025 --data data/all_events.csv --out build/HoraceMann-PTSA-2025-26-Calendar.pdf
 
 # Open the result (macOS)
-open build/HoraceMann-PTSA-2025-26.pdf
+open build/HoraceMann-PTSA-2025-26-Calendar.pdf
 ```
 
 ## CSV Data Format
 
-Both event files use the same schema:
+The event file uses this schema:
 
 ```csv
-date,start_date,end_date,type,scope,label,notes
-2025-09-02,,,first_day_1_12,district,First Day (Grades 1-12),
-,2025-12-22,2026-01-02,no_school,district,Winter Break,
-2025-10-10,,,ptsa_event,ptsa,Fall Carnival,5-7pm
+date,start_date,end_date,type,label,notes
+2025-09-02,,,first_day,First Day (Grades 1-12),
+,2025-12-22,2026-01-02,no_school,Winter Break,
+2025-10-10,,,ptsa_event,Picture Day,
 ```
 
 - Use `date` for single-day events OR `start_date`+`end_date` for ranges
-- `type` determines visual styling (no_school, half_day, ptsa_event, etc.)
-- `scope` is either `district` or `ptsa`
+- `type` determines visual styling and event category (no_school, half_day, ptsa_event, first_day, etc.)
 - `label` appears in the Important Dates section
 
 ## Customization
@@ -117,8 +115,7 @@ After pushing changes, your calendar will be available at:
 ```
 ├── build.py                 # Main generator script
 ├── data/
-│   ├── events.csv          # LWSD district dates
-│   └── ptsa_events.csv     # PTSA-specific events
+│   └── all_events.csv      # Combined LWSD district and PTSA events
 ├── templates/
 │   ├── base.html           # HTML structure
 │   └── calendar.html       # Calendar layout
