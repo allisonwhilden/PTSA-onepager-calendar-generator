@@ -29,7 +29,7 @@ import {
 
 // Color constants - matching WeasyPrint CSS
 const PTSA_RED = '#C40A0C';
-const GREY_BG = '#ccc';
+const GREY_BG = '#ddd';  // Lighter grey for half-day cells
 const LIGHT_GREY = '#d9d9d9';  // Was #e5e5e5
 const WEEKEND_COLOR = '#999';  // Was #888888
 const CELL_BORDER = '#ddd';
@@ -408,16 +408,16 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (isHalfDay && !isNoSchool && !isClosure) {
     return (
       <View style={styles.dayCell}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
           <Rect x="0" y="0" width="20" height="11" fill={GREY_BG} />
         </Svg>
         {hasDiamond && (
-          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
             <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
           </Svg>
         )}
         {hasCircle && (
-          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+          <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
             <Circle cx="10" cy="5.5" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
           </Svg>
         )}
