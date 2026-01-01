@@ -337,11 +337,12 @@ function StripedChip() {
   return (
     <Svg width={6} height={6} viewBox="0 0 6 6" style={{ marginRight: 3, borderWidth: 0.5, borderColor: '#000' }}>
       <Rect x="0" y="0" width="6" height="6" fill={LIGHT_GREY} />
-      <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="0.5" />
-      <Line x1="0" y1="4" x2="4" y2="0" stroke="#fff" strokeWidth="0.5" />
-      <Line x1="0" y1="6" x2="6" y2="0" stroke="#fff" strokeWidth="0.5" />
-      <Line x1="2" y1="6" x2="6" y2="2" stroke="#fff" strokeWidth="0.5" />
-      <Line x1="4" y1="6" x2="6" y2="4" stroke="#fff" strokeWidth="0.5" />
+      {/* Extended lines for edge-to-edge stripes */}
+      <Line x1="-1" y1="2" x2="2" y2="-1" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-1" y1="4" x2="4" y2="-1" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-1" y1="6" x2="6" y2="-1" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="1" y1="7" x2="7" y2="1" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="3" y1="7" x2="7" y2="3" stroke="#fff" strokeWidth="0.75" />
     </Svg>
   );
 }
@@ -403,27 +404,22 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   else if (isWeekend) textStyle = styles.dayTextWeekend;
   else if (isEarlyRelease && !isPtsa) textStyle = styles.dayTextBold;
 
-  // For closure/make-up days, show striped pattern
+  // For closure/make-up days, show striped pattern with extended lines
   if (isClosure && !isNoSchool && !isHalfDay) {
     return (
       <View style={styles.dayCell}>
         <Svg width="100%" height="100%" viewBox="0 0 20 13" style={{ position: 'absolute' }}>
           <Rect x="0" y="0" width="20" height="13" fill={LIGHT_GREY} />
-          <Line x1="0" y1="2" x2="2" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="4" x2="4" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="6" x2="6" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="8" x2="8" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="10" x2="10" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="0" y1="12" x2="12" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="2" y1="13" x2="14" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="4" y1="13" x2="16" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="6" y1="13" x2="18" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="8" y1="13" x2="20" y2="0" stroke="#fff" strokeWidth="1" />
-          <Line x1="10" y1="13" x2="20" y2="2" stroke="#fff" strokeWidth="1" />
-          <Line x1="12" y1="13" x2="20" y2="4" stroke="#fff" strokeWidth="1" />
-          <Line x1="14" y1="13" x2="20" y2="6" stroke="#fff" strokeWidth="1" />
-          <Line x1="16" y1="13" x2="20" y2="8" stroke="#fff" strokeWidth="1" />
-          <Line x1="18" y1="13" x2="20" y2="10" stroke="#fff" strokeWidth="1" />
+          {/* Extended lines that go beyond viewBox for edge-to-edge coverage */}
+          <Line x1="-4" y1="4" x2="4" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="8" x2="8" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="12" x2="12" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="16" x2="16" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="0" y1="16" x2="20" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="4" y1="16" x2="24" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="8" y1="16" x2="24" y2="0" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="12" y1="16" x2="24" y2="4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="16" y1="16" x2="24" y2="8" stroke="#fff" strokeWidth="1.5" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
