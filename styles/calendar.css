@@ -1,87 +1,104 @@
-/* LWSD one-page calendar - using flexbox for WeasyPrint compatibility */
+/* LWSD one-page calendar - Compact Single-Page Design */
 @page {
   size: Letter;
-  margin: 36pt; /* 0.5 inch margins for safe printing on all printers */
+  margin: 18pt; /* 0.25 inch margins - tighter for single-page fit */
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
 html, body {
   font-family: Arial, sans-serif;
   font-size: 7.5pt;
-  line-height: 1;
+  line-height: 1.1;
 }
 
-/* Header */
+/* Main wrapper - prevents page breaks inside */
+.page-wrapper {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Header - Modern minimal design */
 .topbar {
   display: flex;
   justify-content: space-between;
-  background: #C40A0C;
-  color: #fff;
-  padding: 3pt 6pt;
-  margin-bottom: 3pt;
+  align-items: center;
+  background: transparent;
+  padding: 6pt 0 8pt 0;
+  margin-bottom: 8pt;
 }
-.topbar .title { 
-  font-size: 9pt;
-  font-weight: 700; 
+.topbar .title {
+  font-size: 12pt;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #222;
 }
-.topbar .logo-area { 
-  font-size: 6pt; 
+.topbar .title .accent {
+  color: #C40A0C;
+}
+.topbar .logo-area {
+  font-size: 6pt;
+  color: #666;
 }
 
-/* Main container */
-.layout-col { 
-  display: flex; 
-  flex-direction: column; 
-}
-
-/* Month grid - using flexbox instead of grid for WeasyPrint */
-.year-grid.full-width {
+/* Month grid - flexbox with balanced spacing */
+.year-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  margin-bottom: 2pt;
+  margin-bottom: 4pt;
 }
 
 /* Individual month - exactly 1/3 width minus gaps */
 .month {
-  padding: 1pt;
-  width: 31%;
-  margin-bottom: 2pt;
+  width: 32.5%;
+  margin-bottom: 6pt;
   break-inside: avoid;
+  page-break-inside: avoid;
 }
 .month header {
   font-weight: 700;
   font-size: 7pt;
   text-align: center;
   margin-bottom: 2pt;
+  padding: 2pt 4pt;
+  letter-spacing: 0.02em;
 }
 
 /* Calendar table */
-.month-grid { 
-  width: 100%; 
-  border-collapse: collapse; 
+.month-grid {
+  width: 100%;
+  border-collapse: collapse;
   table-layout: fixed;
 }
 .month-grid thead th {
-  background: #f0f0f0;
-  font-size: 6pt;
-  padding: 2pt 1pt;
-  border: 0.5pt solid #ccc;
-  font-weight: normal;
+  font-size: 5.5pt;
+  padding: 2pt 0;
+  border-bottom: 0.5pt solid #ddd;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #666;
 }
 .month-grid tbody td {
   border: 0.5pt solid #ddd;
   text-align: center;
-  font-size: 6pt;
-  padding: 1pt 0.5pt;
+  font-size: 6.5pt;
+  padding: 1pt 0;
   height: 11pt;
+  vertical-align: middle;
 }
+
 /* Square box around number for special first/last days */
 .day.diamond span {
-  border: 1pt solid #000;
-  padding: 0.5pt 2pt;
+  border: 0.75pt solid #000;
+  padding: 0 1.5pt;
   display: inline-block;
   font-weight: bold;
   line-height: 1;
+  font-size: 6pt;
+  margin-right: 1pt;
 }
 
 /* Weekend days - subtle styling */
@@ -102,7 +119,6 @@ html, body {
 
 /* Potential school day if closures occur: grey diagonal stripes */
 .day.mark-closure_possible {
-  /* Use a print-friendly repeating linear gradient */
   background: repeating-linear-gradient(
     45deg,
     #d9d9d9,
@@ -121,98 +137,71 @@ html, body {
 }
 
 .day.mark-early_release {
-  font-weight: bold;
+  font-weight: 900;
+  color: #000;
 }
 
 /* Circle around number for PTSA events */
 .day.circle span {
-  border: 0.75pt solid #C40A0C;
+  border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 10pt;
-  height: 10pt;
+  width: 12pt;
+  height: 12pt;
   display: inline-block;
-  font-weight: bold;
+  font-weight: normal;
   line-height: 10pt;
   text-align: center;
   padding: 0;
-}
-
-/* Bottom section */
-.below {
-  padding-top: 4pt;
-}
-
-.important-legend-container {
-  display: flex;
-  gap: 10pt;
-}
-
-.important {
-  flex: 1;
-}
-.section-title {
-  color: #000;
-  padding: 2pt 0;
-  font-weight: 700;
-  font-size: 8pt;
-  margin-bottom: 3pt;
-}
-.important ul {
-  font-size: 7pt;
-  columns: 2;
-  column-gap: 15pt;
-  padding-left: 0;
-  list-style: none;
-}
-.important li {
-  margin-bottom: 1pt;
-  break-inside: avoid;
-}
-.important li.district-event {
-  background: #f0f0f0;
-  padding: 0.5pt 2pt;
-  margin-left: -2pt;
-  margin-right: -2pt;
-  color: #555;
-}
-.important li:not(.district-event) {
-  color: #C40A0C;
-}
-
-/* Legend */
-.legend {
-  width: 120pt;
-  padding: 4pt;
-}
-.legend-title {
-  font-weight: 700;
-  font-size: 7pt;
-  margin-bottom: 1pt;
-}
-.legend ul {
-  list-style: none;
   font-size: 6pt;
+  margin-right: 1pt;
+  position: relative;
+  top: 0;
 }
-.legend li {
+
+/* PTSA event on early release day - keep bold */
+.day.circle.mark-early_release span {
+  font-weight: 900;
+}
+
+/* Horizontal Legend Bar */
+.legend-bar {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 4pt;
-  margin-bottom: 0.5pt;
+  padding: 6pt 0;
+  margin: 4pt 0;
+  font-size: 6.5pt;
 }
-.chip { 
-  width: 8pt; 
-  height: 8pt; 
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin: 0 10pt;
+}
+
+.legend-item .chip,
+.legend-item .legend-diamond,
+.legend-item .legend-circle,
+.legend-item .symbol {
+  margin-right: 3pt;
+}
+
+/* Chip styles for legend */
+.chip {
+  width: 6pt;
+  height: 6pt;
   border: 0.5pt solid #000;
   display: inline-block;
+  flex-shrink: 0;
 }
-.chip.no_school { 
-  background: #000; 
+.chip.no_school {
+  background: #000;
 }
-.chip.half_day { 
-  background: #ccc; 
+.chip.half_day {
+  background: #ccc;
 }
-
-/* Legend chip for potential school day (striped) */
 .chip.closure_possible {
   background: repeating-linear-gradient(
     45deg,
@@ -225,32 +214,98 @@ html, body {
 
 .symbol {
   font-weight: bold;
-  font-size: 10pt;
+  font-size: 7pt;
   display: inline-block;
-  width: 10pt;
+  width: 6pt;
   text-align: center;
 }
 
 /* Legend demo icons */
 .legend-diamond {
-  border: 1pt solid #000;
-  padding: 0.5pt 2pt;
+  border: 0.75pt solid #000;
+  padding: 0 1pt;
   display: inline-block;
   font-weight: bold;
+  font-size: 5pt;
+  line-height: 1;
 }
 .legend-circle {
-  border: 0.75pt solid #C40A0C;
+  border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 10pt;
-  height: 10pt;
+  width: 12pt;
+  height: 12pt;
   line-height: 10pt;
   text-align: center;
   display: inline-block;
-  font-weight: bold;
+  font-weight: normal;
+  font-size: 5pt;
+}
+.bold-demo {
+  font-weight: 900;
+  color: #000;
 }
 
-.notes {
-  font-size: 6pt;
-  color: #666;
-  margin-top: 3pt;
+/* Important Dates - Table-based for WeasyPrint compatibility */
+.important {
+  width: 100%;
+  padding-top: 4pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.section-title {
+  color: #000;
+  padding: 2pt 0;
+  font-weight: 700;
+  font-size: 7.5pt;
+  margin-bottom: 4pt;
+  border-bottom: 0.5pt solid #ccc;
+}
+
+/* Two-column table layout for Important Dates */
+.important-dates-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 6.5pt;
+  line-height: 1.2;
+}
+.important-dates-table td {
+  vertical-align: top;
+  padding: 0 8pt;
+  width: 50%;
+}
+.important-dates-table .date-item {
+  padding: 1pt 2pt;
+  break-inside: avoid;
+}
+.important-dates-table .date-item b {
+  font-weight: 700;
+  margin-right: 3pt;
+}
+
+/* District events styling */
+.important-dates-table .district-event {
+  color: #555;
+}
+
+/* PTSA events styling with accent */
+.important-dates-table .ptsa-event {
+  border-left: 1.5pt solid #C40A0C;
+  padding-left: 3pt;
+  color: #C40A0C;
+}
+
+/* Footer */
+.page-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6pt;
+  font-size: 5.5pt;
+  color: #888;
+  padding-top: 6pt;
+  margin-top: 6pt;
+}
+.page-footer .separator {
+  color: #ccc;
 }

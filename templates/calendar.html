@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block body %}
-<header class="topbar">
-  <div class="title">Horace Mann PTSA | 2025-26 Calendar</div>
-  <div class="logo-area"></div>
-</header>
+<div class="page-wrapper">
+  <header class="topbar">
+    <div class="title">Horace Mann <span class="accent">PTSA</span> | 2025-26 Calendar</div>
+    <div class="logo-area"></div>
+  </header>
 
-<div class="layout-col">
-  <section class="year-grid full-width">
+  <section class="year-grid">
     {% for m in months %}
     <article class="month">
       <header>{{ m.name }} {{ m.year }}</header>
@@ -36,34 +36,41 @@
     {% endfor %}
   </section>
 
-  <section class="below">
-    <div class="important-legend-container">
-      <section class="important">
-        <div class="section-title">Important Dates</div>
-        <ul>
-          {% for e in important %}
-            <li{% if not e.is_ptsa %} class="district-event"{% endif %}><b>{{ e.when }}</b> {{ e.label }}</li>
-          {% endfor %}
-        </ul>
-      </section>
-      <section class="legend">
-        <div class="legend-title">Key</div>
-        <ul>
-          <li><span class="chip no_school"></span> No School</li>
-          <li><span class="chip half_day"></span> Half Day</li>
-          <li><span class="chip closure_possible"></span> School Closure Make-up (if needed)</li>
-          <li><span class="legend-diamond">1</span> First/Last Day</li>
-          <li><span class="legend-circle">1</span> PTSA Event</li>
-          <li><b>Bold</b> = Early Release Wed</li>
-          <li><span class="symbol">*</span> Check Important Dates</li>
-        </ul>
-        <div class="notes">
-          <div>Updated {{ meta.generated_at }}</div>
-          <div>Calendar is subject to change.</div>
-          <div>School year may be extended due to inclement weather.</div>
-        </div>
-      </section>
-    </div>
+  <section class="legend-bar">
+    <span class="legend-item"><span class="chip no_school"></span> No School</span>
+    <span class="legend-item"><span class="chip half_day"></span> Half Day</span>
+    <span class="legend-item"><span class="chip closure_possible"></span> Make-up</span>
+    <span class="legend-item"><span class="legend-diamond">1</span> First/Last</span>
+    <span class="legend-item"><span class="legend-circle">1</span> PTSA</span>
+    <span class="legend-item"><span class="bold-demo">Bold</span>=Early Release</span>
+    <span class="legend-item"><span class="symbol">*</span>=See Dates</span>
   </section>
+
+  <section class="important">
+    <div class="section-title">Important Dates</div>
+    {% set half = (important|length + 1) // 2 %}
+    <table class="important-dates-table">
+      <tr>
+        <td>
+          {% for e in important[:half] %}
+            <div class="date-item {% if e.is_ptsa %}ptsa-event{% else %}district-event{% endif %}"><b>{{ e.when }}</b> {{ e.label }}</div>
+          {% endfor %}
+        </td>
+        <td>
+          {% for e in important[half:] %}
+            <div class="date-item {% if e.is_ptsa %}ptsa-event{% else %}district-event{% endif %}"><b>{{ e.when }}</b> {{ e.label }}</div>
+          {% endfor %}
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <footer class="page-footer">
+    <span>Updated {{ meta.generated_at }}</span>
+    <span class="separator">|</span>
+    <span>Calendar subject to change</span>
+    <span class="separator">|</span>
+    <span>School year may extend due to weather closures</span>
+  </footer>
 </div>
 {% endblock %}
