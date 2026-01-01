@@ -431,17 +431,25 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   if (isClosure && !isNoSchool && !isHalfDay) {
     return (
       <View style={styles.dayCell}>
-        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
+        <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
           <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
-          {/* Extended lines that go beyond viewBox for edge-to-edge coverage */}
-          <Line x1="-4" y1="4" x2="4" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-4" y1="8" x2="8" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-4" y1="12" x2="12" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="0" y1="14" x2="14" y2="-2" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="4" y1="14" x2="18" y2="-2" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="8" y1="14" x2="22" y2="-2" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="12" y1="14" x2="22" y2="2" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="16" y1="14" x2="22" y2="6" stroke="#fff" strokeWidth="1.5" />
+          {/* Diagonal stripes every 3 units, extending well beyond viewBox for edge-to-edge coverage */}
+          <Line x1="-10" y1="3" x2="3" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="6" x2="6" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="9" x2="9" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="12" x2="12" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="15" x2="15" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="18" x2="18" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="21" x2="21" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-7" y1="21" x2="24" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="21" x2="27" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-1" y1="21" x2="30" y2="-10" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="2" y1="21" x2="30" y2="-7" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="5" y1="21" x2="30" y2="-4" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="8" y1="21" x2="30" y2="-1" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="11" y1="21" x2="30" y2="2" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="14" y1="21" x2="30" y2="5" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="17" y1="21" x2="30" y2="8" stroke="#fff" strokeWidth="1.5" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
         {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
