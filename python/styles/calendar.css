@@ -300,12 +300,15 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6pt;
   font-size: 5.5pt;
   color: #888;
   padding-top: 6pt;
   margin-top: 6pt;
 }
+.page-footer span {
+  margin: 0 6pt;
+}
 .page-footer .separator {
-  color: #ccc;
+  color: #aaa;
+  margin: 0 2pt;
 }

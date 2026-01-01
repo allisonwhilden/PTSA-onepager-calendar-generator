@@ -1,0 +1,256 @@
+/* LWSD one-page calendar - using flexbox for WeasyPrint compatibility */
+@page {
+  size: Letter;
+  margin: 36pt; /* 0.5 inch margins for safe printing on all printers */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: Arial, sans-serif;
+  font-size: 7.5pt;
+  line-height: 1;
+}
+
+/* Header */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  background: #C40A0C;
+  color: #fff;
+  padding: 3pt 6pt;
+  margin-bottom: 3pt;
+}
+.topbar .title { 
+  font-size: 9pt;
+  font-weight: 700; 
+}
+.topbar .logo-area { 
+  font-size: 6pt; 
+}
+
+/* Main container */
+.layout-col { 
+  display: flex; 
+  flex-direction: column; 
+}
+
+/* Month grid - using flexbox instead of grid for WeasyPrint */
+.year-grid.full-width {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 2pt;
+}
+
+/* Individual month - exactly 1/3 width minus gaps */
+.month {
+  padding: 1pt;
+  width: 31%;
+  margin-bottom: 2pt;
+  break-inside: avoid;
+}
+.month header {
+  font-weight: 700;
+  font-size: 7pt;
+  text-align: center;
+  margin-bottom: 2pt;
+}
+
+/* Calendar table */
+.month-grid { 
+  width: 100%; 
+  border-collapse: collapse; 
+  table-layout: fixed;
+}
+.month-grid thead th {
+  background: #f0f0f0;
+  font-size: 6pt;
+  padding: 2pt 1pt;
+  border: 0.5pt solid #ccc;
+  font-weight: normal;
+}
+.month-grid tbody td {
+  border: 0.5pt solid #ddd;
+  text-align: center;
+  font-size: 6pt;
+  padding: 1pt 0.5pt;
+  height: 11pt;
+}
+/* Square box around number for special first/last days */
+.day.diamond span {
+  border: 1pt solid #000;
+  padding: 0.5pt 2pt;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Weekend days - subtle styling */
+.day.weekend {
+  color: #999;
+}
+
+/* Event marking */
+.day.mark-no_school {
+  background: #000;
+  color: #fff;
+}
+
+.day.mark-half_day {
+  background: #ccc;
+  color: #000;
+}
+
+/* Potential school day if closures occur: grey diagonal stripes */
+.day.mark-closure_possible {
+  /* Use a print-friendly repeating linear gradient */
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
+  color: #000;
+}
+
+.day.mark-first_day,
+.day.mark-first_day_1_12,
+.day.mark-first_day_k,
+.day.mark-last_day {
+  /* No background, diamond symbol will indicate these days */
+}
+
+.day.mark-early_release {
+  font-weight: bold;
+}
+
+/* Circle around number for PTSA events */
+.day.circle span {
+  border: 0.75pt solid #C40A0C;
+  border-radius: 50%;
+  width: 10pt;
+  height: 10pt;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 10pt;
+  text-align: center;
+  padding: 0;
+}
+
+/* Bottom section */
+.below {
+  padding-top: 4pt;
+}
+
+.important-legend-container {
+  display: flex;
+  gap: 10pt;
+}
+
+.important {
+  flex: 1;
+}
+.section-title {
+  color: #000;
+  padding: 2pt 0;
+  font-weight: 700;
+  font-size: 8pt;
+  margin-bottom: 3pt;
+}
+.important ul {
+  font-size: 7pt;
+  columns: 2;
+  column-gap: 15pt;
+  padding-left: 0;
+  list-style: none;
+}
+.important li {
+  margin-bottom: 1pt;
+  break-inside: avoid;
+}
+.important li.district-event {
+  background: #f0f0f0;
+  padding: 0.5pt 2pt;
+  margin-left: -2pt;
+  margin-right: -2pt;
+  color: #555;
+}
+.important li:not(.district-event) {
+  color: #C40A0C;
+}
+
+/* Legend */
+.legend {
+  width: 120pt;
+  padding: 4pt;
+}
+.legend-title {
+  font-weight: 700;
+  font-size: 7pt;
+  margin-bottom: 1pt;
+}
+.legend ul {
+  list-style: none;
+  font-size: 6pt;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 4pt;
+  margin-bottom: 0.5pt;
+}
+.chip { 
+  width: 8pt; 
+  height: 8pt; 
+  border: 0.5pt solid #000;
+  display: inline-block;
+}
+.chip.no_school { 
+  background: #000; 
+}
+.chip.half_day { 
+  background: #ccc; 
+}
+
+/* Legend chip for potential school day (striped) */
+.chip.closure_possible {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
+}
+
+.symbol {
+  font-weight: bold;
+  font-size: 10pt;
+  display: inline-block;
+  width: 10pt;
+  text-align: center;
+}
+
+/* Legend demo icons */
+.legend-diamond {
+  border: 1pt solid #000;
+  padding: 0.5pt 2pt;
+  display: inline-block;
+  font-weight: bold;
+}
+.legend-circle {
+  border: 0.75pt solid #C40A0C;
+  border-radius: 50%;
+  width: 10pt;
+  height: 10pt;
+  line-height: 10pt;
+  text-align: center;
+  display: inline-block;
+  font-weight: bold;
+}
+
+.notes {
+  font-size: 6pt;
+  color: #666;
+  margin-top: 3pt;
+}

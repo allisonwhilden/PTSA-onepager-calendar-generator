@@ -46,3 +46,14 @@ data/*_backup.csv
 
 # Logs
 *.log
+
+# Node.js
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Events data (generated)
+data/events.json
