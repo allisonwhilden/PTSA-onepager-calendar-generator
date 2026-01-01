@@ -422,7 +422,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
           </Svg>
         )}
         <Text style={hasDiamond ? { ...textStyle, fontWeight: 'bold' } : (isEarlyRelease ? styles.dayTextBold : textStyle)}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
+        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
       </View>
     );
   }
@@ -452,7 +452,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
           <Line x1="17" y1="21" x2="30" y2="8" stroke="#fff" strokeWidth="1.5" />
         </Svg>
         <Text style={textStyle}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
+        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
       </View>
     );
   }
@@ -477,7 +477,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
           <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
         </Svg>
         <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
+        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
       </View>
     );
   }
@@ -485,7 +485,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
   return (
     <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
       <Text style={textStyle}>{day}</Text>
-      {showAsterisk && <Text style={{ position: 'absolute', top: 0, right: 1, fontSize: 4 }}>*</Text>}
+      {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
     </View>
   );
 }
