@@ -337,14 +337,14 @@ function StripedChip() {
   return (
     <Svg width={6} height={6} viewBox="0 0 6 6" style={{ marginRight: 3, borderWidth: 0.5, borderColor: '#000' }}>
       <Rect x="0" y="0" width="6" height="6" fill={LIGHT_GREY} />
-      {/* Diagonal stripes going \ (top-left to bottom-right) */}
-      <Line x1="-1" y1="-1" x2="2" y2="2" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="1" y1="-1" x2="4" y2="2" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="3" y1="-1" x2="6" y2="2" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="5" y1="-1" x2="8" y2="2" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="-1" y1="1" x2="2" y2="4" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="-1" y1="3" x2="2" y2="6" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="-1" y1="5" x2="2" y2="8" stroke="#fff" strokeWidth="0.75" />
+      {/* Diagonal stripes going \ (top-left to bottom-right) - long lines */}
+      <Line x1="-2" y1="-2" x2="10" y2="10" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="0" y1="-2" x2="12" y2="10" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="2" y1="-2" x2="14" y2="10" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="4" y1="-2" x2="16" y2="10" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-2" y1="0" x2="10" y2="12" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-2" y1="2" x2="10" y2="14" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-2" y1="4" x2="10" y2="16" stroke="#fff" strokeWidth="0.75" />
     </Svg>
   );
 }
@@ -434,23 +434,25 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
       <View style={styles.dayCell}>
         <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
           <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
-          {/* Diagonal stripes going \ (top-left to bottom-right) every 3 units */}
-          <Line x1="-10" y1="-10" x2="3" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-7" y1="-10" x2="6" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-4" y1="-10" x2="9" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-1" y1="-10" x2="12" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="2" y1="-10" x2="15" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="5" y1="-10" x2="18" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="8" y1="-10" x2="21" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="11" y1="-10" x2="24" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="14" y1="-10" x2="27" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="17" y1="-10" x2="30" y2="3" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="-7" x2="3" y2="6" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="-4" x2="3" y2="9" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="-1" x2="3" y2="12" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="2" x2="3" y2="15" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="5" x2="3" y2="18" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="8" x2="3" y2="21" stroke="#fff" strokeWidth="1.5" />
+          {/* Diagonal stripes going \ (top-left to bottom-right) - long lines every 3 units */}
+          <Line x1="-10" y1="-10" x2="30" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-7" y1="-10" x2="33" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="-10" x2="36" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-1" y1="-10" x2="39" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="2" y1="-10" x2="42" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="5" y1="-10" x2="45" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="8" y1="-10" x2="48" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="11" y1="-10" x2="51" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="14" y1="-10" x2="54" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="17" y1="-10" x2="57" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="20" y1="-10" x2="60" y2="30" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-7" x2="30" y2="33" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-4" x2="30" y2="36" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-1" x2="30" y2="39" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="2" x2="30" y2="42" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="5" x2="30" y2="45" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="8" x2="30" y2="48" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="11" x2="30" y2="51" stroke="#fff" strokeWidth="1.5" />
         </Svg>
         <Text style={textStyle}>{day}{showAsterisk ? '*' : ''}</Text>
       </View>
