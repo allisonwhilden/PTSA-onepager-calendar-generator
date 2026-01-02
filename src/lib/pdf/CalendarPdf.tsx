@@ -337,12 +337,14 @@ function StripedChip() {
   return (
     <Svg width={6} height={6} viewBox="0 0 6 6" style={{ marginRight: 3, borderWidth: 0.5, borderColor: '#000' }}>
       <Rect x="0" y="0" width="6" height="6" fill={LIGHT_GREY} />
-      {/* Extended lines for edge-to-edge stripes */}
-      <Line x1="-1" y1="2" x2="2" y2="-1" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="-1" y1="4" x2="4" y2="-1" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="-1" y1="6" x2="6" y2="-1" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="1" y1="7" x2="7" y2="1" stroke="#fff" strokeWidth="0.75" />
-      <Line x1="3" y1="7" x2="7" y2="3" stroke="#fff" strokeWidth="0.75" />
+      {/* Diagonal stripes going \ (top-left to bottom-right) */}
+      <Line x1="-1" y1="-1" x2="2" y2="2" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="1" y1="-1" x2="4" y2="2" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="3" y1="-1" x2="6" y2="2" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="5" y1="-1" x2="8" y2="2" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-1" y1="1" x2="2" y2="4" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-1" y1="3" x2="2" y2="6" stroke="#fff" strokeWidth="0.75" />
+      <Line x1="-1" y1="5" x2="2" y2="8" stroke="#fff" strokeWidth="0.75" />
     </Svg>
   );
 }
@@ -421,8 +423,7 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
             <Circle cx="10" cy="5.5" r="5" stroke={PTSA_RED} strokeWidth="1" fill="none" />
           </Svg>
         )}
-        <Text style={hasDiamond ? { ...textStyle, fontWeight: 'bold' } : (isEarlyRelease ? styles.dayTextBold : textStyle)}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
+        <Text style={hasDiamond ? { ...textStyle, fontWeight: 'bold' } : (isEarlyRelease ? styles.dayTextBold : textStyle)}>{day}{showAsterisk ? '*' : ''}</Text>
       </View>
     );
   }
@@ -433,26 +434,25 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
       <View style={styles.dayCell}>
         <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }} preserveAspectRatio="none">
           <Rect x="0" y="0" width="20" height="11" fill={LIGHT_GREY} />
-          {/* Diagonal stripes every 3 units, extending well beyond viewBox for edge-to-edge coverage */}
-          <Line x1="-10" y1="3" x2="3" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="6" x2="6" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="9" x2="9" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="12" x2="12" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="15" x2="15" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="18" x2="18" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-10" y1="21" x2="21" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-7" y1="21" x2="24" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-4" y1="21" x2="27" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="-1" y1="21" x2="30" y2="-10" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="2" y1="21" x2="30" y2="-7" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="5" y1="21" x2="30" y2="-4" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="8" y1="21" x2="30" y2="-1" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="11" y1="21" x2="30" y2="2" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="14" y1="21" x2="30" y2="5" stroke="#fff" strokeWidth="1.5" />
-          <Line x1="17" y1="21" x2="30" y2="8" stroke="#fff" strokeWidth="1.5" />
+          {/* Diagonal stripes going \ (top-left to bottom-right) every 3 units */}
+          <Line x1="-10" y1="-10" x2="3" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-7" y1="-10" x2="6" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-4" y1="-10" x2="9" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-1" y1="-10" x2="12" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="2" y1="-10" x2="15" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="5" y1="-10" x2="18" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="8" y1="-10" x2="21" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="11" y1="-10" x2="24" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="14" y1="-10" x2="27" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="17" y1="-10" x2="30" y2="3" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-7" x2="3" y2="6" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-4" x2="3" y2="9" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="-1" x2="3" y2="12" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="2" x2="3" y2="15" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="5" x2="3" y2="18" stroke="#fff" strokeWidth="1.5" />
+          <Line x1="-10" y1="8" x2="3" y2="21" stroke="#fff" strokeWidth="1.5" />
         </Svg>
-        <Text style={textStyle}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
+        <Text style={textStyle}>{day}{showAsterisk ? '*' : ''}</Text>
       </View>
     );
   }
@@ -476,16 +476,14 @@ function DayCell({ cell }: { cell: CalendarCell | null }) {
         <Svg width="100%" height="100%" viewBox="0 0 20 11" style={{ position: 'absolute' }}>
           <Rect x="4" y="1" width="12" height="9" stroke="#000" strokeWidth="0.75" fill="none" />
         </Svg>
-        <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}</Text>
-        {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
+        <Text style={{ ...textStyle, fontWeight: 'bold' }}>{day}{showAsterisk ? '*' : ''}</Text>
       </View>
     );
   }
 
   return (
     <View style={[styles.dayCell, { backgroundColor: bgColor }]}>
-      <Text style={textStyle}>{day}</Text>
-      {showAsterisk && <Text style={{ position: 'absolute', top: -1, right: 0, fontSize: 6 }}>*</Text>}
+      <Text style={textStyle}>{day}{showAsterisk ? '*' : ''}</Text>
     </View>
   );
 }
