@@ -123,3 +123,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Diagonal stripe pattern for make-up days (web calendar) */
+.stripe-pattern {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 4px,
+    #ffffff 4px,
+    #ffffff 8px
+  );
+}

@@ -14,9 +14,9 @@ const markStyles: Record<EventType, string> = {
   half_day: 'bg-gray-300',
   early_release: 'font-black',
   ptsa_event: '', // Handled with circle
-  first_day: '', // Handled with diamond
-  last_day: '', // Handled with diamond
-  closure_possible: 'bg-gray-200',
+  first_day: '', // Handled with box
+  last_day: '', // Handled with box
+  closure_possible: 'stripe-pattern', // Diagonal stripes
 };
 
 export function DayCell({ cell, onClick }: DayCellProps) {
@@ -32,7 +32,7 @@ export function DayCell({ cell, onClick }: DayCellProps) {
     : marks.includes('half_day')
     ? 'bg-gray-300'
     : marks.includes('closure_possible')
-    ? 'bg-gray-200'
+    ? 'stripe-pattern'
     : '';
 
   // Determine if early release (bold)
@@ -41,6 +41,32 @@ export function DayCell({ cell, onClick }: DayCellProps) {
 
   // Bold only for early release days (unless it's a PTSA day - then also bold)
   const isBold = isEarlyRelease || (isPtsaEvent && isEarlyRelease);
+
+  // Render day content with optional indicator wrapper
+  const renderDayContent = () => {
+    const asterisk = showAsterisk ? '*' : '';
+
+    // Rectangle box for first/last day (not diamond)
+    if (hasDiamond && !hasCircle) {
+      return (
+        <span className="inline-flex items-center justify-center border border-black px-1 font-bold text-xs leading-tight">
+          {day}{asterisk}
+        </span>
+      );
+    }
+
+    // Red circle for PTSA events
+    if (hasCircle) {
+      return (
+        <span className="relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border border-red-600">
+          {day}{asterisk}
+        </span>
+      );
+    }
+
+    // Default: just the number with inline asterisk
+    return <span className="relative z-10">{day}{asterisk}</span>;
+  };
 
   return (
     <div
@@ -52,29 +78,7 @@ export function DayCell({ cell, onClick }: DayCellProps) {
         isBold && 'font-black'
       )}
     >
-      {/* Diamond indicator for first/last day */}
-      {hasDiamond && (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span className="h-5 w-5 rotate-45 border border-black" />
-        </span>
-      )}
-
-      {/* Circle indicator for PTSA event */}
-      {hasCircle && (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span className="h-5 w-5 rounded-full border border-red-600" />
-        </span>
-      )}
-
-      {/* Day number */}
-      <span className="relative z-10">{day}</span>
-
-      {/* Asterisk for additional info */}
-      {showAsterisk && (
-        <span className="absolute -right-0.5 top-0 text-[10px] leading-none">
-          *
-        </span>
-      )}
+      {renderDayContent()}
     </div>
   );
 }
