@@ -233,3 +233,175 @@ function calculateShowAsterisk(marks: EventType[], hasDiamond: boolean, hasCircl
   // Show asterisk if there are other marks (non-PTSA)
   return marks.length > 0 && !marks.includes('ptsa_event');
 }
+
+// Get the start of the week (Sunday) for a date
+export function getWeekStart(date: Date): Date {
+  const result = new Date(date);
+  const day = result.getDay();
+  result.setDate(result.getDate() - day);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+// Get the end of the week (Saturday) for a date
+export function getWeekEnd(date: Date): Date {
+  const result = new Date(date);
+  const day = result.getDay();
+  result.setDate(result.getDate() + (6 - day));
+  result.setHours(23, 59, 59, 999);
+  return result;
+}
+
+// Get event's effective start date
+export function getEventStartDate(event: CalendarEvent): string {
+  return event.date || event.startDate || '';
+}
+
+// Check if event falls within a date range
+export function isEventInRange(event: CalendarEvent, start: Date, end: Date): boolean {
+  const startStr = formatDate(start);
+  const endStr = formatDate(end);
+
+  // Single day event
+  if (event.date) {
+    return event.date >= startStr && event.date <= endStr;
+  }
+
+  // Range event - check if any part overlaps
+  if (event.startDate && event.endDate) {
+    return event.startDate <= endStr && event.endDate >= startStr;
+  }
+
+  return false;
+}
+
+// Get upcoming events grouped by time period
+export interface UpcomingEventsGroup {
+  label: string;
+  events: CalendarEvent[];
+  startDate: Date;
+  endDate: Date;
+}
+
+export function getUpcomingEvents(
+  events: CalendarEvent[],
+  referenceDate: Date = new Date()
+): UpcomingEventsGroup[] {
+  const groups: UpcomingEventsGroup[] = [];
+  const today = new Date(referenceDate);
+  today.setHours(0, 0, 0, 0);
+
+  // This Week (rest of current week)
+  const thisWeekEnd = getWeekEnd(today);
+  const thisWeekEvents = events.filter(e => isEventInRange(e, today, thisWeekEnd));
+  if (thisWeekEvents.length > 0) {
+    groups.push({
+      label: 'This Week',
+      events: thisWeekEvents.sort((a, b) => getEventStartDate(a).localeCompare(getEventStartDate(b))),
+      startDate: today,
+      endDate: thisWeekEnd,
+    });
+  }
+
+  // Next Week
+  const nextWeekStart = new Date(thisWeekEnd);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 1);
+  nextWeekStart.setHours(0, 0, 0, 0);
+  const nextWeekEnd = getWeekEnd(nextWeekStart);
+  const nextWeekEvents = events.filter(e => isEventInRange(e, nextWeekStart, nextWeekEnd));
+  if (nextWeekEvents.length > 0) {
+    groups.push({
+      label: 'Next Week',
+      events: nextWeekEvents.sort((a, b) => getEventStartDate(a).localeCompare(getEventStartDate(b))),
+      startDate: nextWeekStart,
+      endDate: nextWeekEnd,
+    });
+  }
+
+  // Later This Month (rest of current month after next week)
+  const laterStart = new Date(nextWeekEnd);
+  laterStart.setDate(laterStart.getDate() + 1);
+  laterStart.setHours(0, 0, 0, 0);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  monthEnd.setHours(23, 59, 59, 999);
+
+  if (laterStart <= monthEnd) {
+    const laterEvents = events.filter(e => isEventInRange(e, laterStart, monthEnd));
+    if (laterEvents.length > 0) {
+      groups.push({
+        label: 'Later This Month',
+        events: laterEvents.sort((a, b) => getEventStartDate(a).localeCompare(getEventStartDate(b))),
+        startDate: laterStart,
+        endDate: monthEnd,
+      });
+    }
+  }
+
+  // Next Month (just to give more context)
+  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+  nextMonthEnd.setHours(23, 59, 59, 999);
+  const nextMonthEvents = events.filter(e => isEventInRange(e, nextMonthStart, nextMonthEnd));
+  if (nextMonthEvents.length > 0) {
+    const nextMonthName = MONTH_NAMES[nextMonthStart.getMonth()];
+    groups.push({
+      label: nextMonthName,
+      events: nextMonthEvents.sort((a, b) => getEventStartDate(a).localeCompare(getEventStartDate(b))),
+      startDate: nextMonthStart,
+      endDate: nextMonthEnd,
+    });
+  }
+
+  return groups;
+}
+
+// Group events by month for the "View All" display
+export interface MonthEventsGroup {
+  year: number;
+  month: number;
+  label: string;
+  events: CalendarEvent[];
+}
+
+export function groupEventsByMonth(events: CalendarEvent[]): MonthEventsGroup[] {
+  const monthMap = new Map<string, CalendarEvent[]>();
+
+  // Group events by their start date's month
+  events.forEach((event) => {
+    const dateStr = event.date || event.startDate || '';
+    if (!dateStr) return;
+
+    const [year, month] = dateStr.split('-').map(Number);
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+
+    if (!monthMap.has(key)) {
+      monthMap.set(key, []);
+    }
+    monthMap.get(key)!.push(event);
+  });
+
+  // Convert to array and sort by date
+  const groups: MonthEventsGroup[] = [];
+  const sortedKeys = Array.from(monthMap.keys()).sort();
+
+  for (const key of sortedKeys) {
+    const [year, month] = key.split('-').map(Number);
+    const monthEvents = monthMap.get(key)!;
+
+    // Sort events within month by date
+    monthEvents.sort((a, b) => {
+      const dateA = a.date || a.startDate || '';
+      const dateB = b.date || b.startDate || '';
+      return dateA.localeCompare(dateB);
+    });
+
+    groups.push({
+      year,
+      month,
+      label: `${MONTH_NAMES[month - 1]} ${year}`,
+      events: monthEvents,
+    });
+  }
+
+  return groups;
+}

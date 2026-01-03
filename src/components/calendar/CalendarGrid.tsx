@@ -14,6 +14,7 @@ interface CalendarGridProps {
   schoolYear?: number;
   config?: SchoolYearConfig;
   onDayClick?: (cell: CalendarCell, monthData: MonthData) => void;
+  selectedDate?: Date | null;
 }
 
 export function CalendarGrid({
@@ -21,6 +22,7 @@ export function CalendarGrid({
   schoolYear = 2025,
   config = DEFAULT_SCHOOL_YEAR_CONFIG,
   onDayClick,
+  selectedDate,
 }: CalendarGridProps) {
   // Generate month data for the school year
   const monthRefs = getSchoolYearMonths(schoolYear);
@@ -37,12 +39,13 @@ export function CalendarGrid({
   };
 
   return (
-    <div className="grid grid-cols-3 gap-3 md:grid-cols-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
       {months.map((month) => (
         <MonthView
           key={`${month.year}-${month.month}`}
           month={month}
           onDayClick={(cell) => handleDayClick(cell, month)}
+          selectedDate={selectedDate}
         />
       ))}
     </div>

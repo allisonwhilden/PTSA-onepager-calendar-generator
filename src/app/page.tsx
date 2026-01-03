@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { CalendarGrid, CalendarLegend } from '@/components/calendar';
-import { EventList } from '@/components/events';
+import { EventList, MobileEventDrawer } from '@/components/events';
 import { CsvUpload } from '@/components/upload';
 import { PdfDownload } from '@/components/pdf';
 import { CalendarEvent, CalendarCell, MonthData, EventsStore } from '@/lib/calendar/types';
@@ -69,6 +69,9 @@ export default function Home() {
     endDate: '',
   });
 
+  // Sidebar state - which date is being viewed (separate from dialog)
+  const [viewingDate, setViewingDate] = useState<Date | null>(null);
+
   // Fetch events on mount
   const fetchEvents = useCallback(async () => {
     try {
@@ -88,11 +91,17 @@ export default function Home() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Handle day click - open add dialog
+  // Handle day click - show events for that day in sidebar
   const handleDayClick = (cell: CalendarCell) => {
+    setViewingDate(cell.date);
+  };
+
+  // Handle add event for the currently viewed date
+  const handleAddEventForDate = () => {
+    if (!viewingDate) return;
     setFormMode('add');
     setEditingEvent(null);
-    setSelectedDate(cell.date);
+    setSelectedDate(viewingDate);
     setFormData({
       type: 'no_school',
       label: '',
@@ -101,6 +110,11 @@ export default function Home() {
       endDate: '',
     });
     setIsDialogOpen(true);
+  };
+
+  // Clear the viewing date selection
+  const handleClearSelection = () => {
+    setViewingDate(null);
   };
 
   // Handle edit click
@@ -244,7 +258,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 lg:p-6">
       {/* Error banner */}
       {error && (
         <div className="mb-4 rounded-lg bg-red-100 p-4 text-red-700">
@@ -256,58 +270,60 @@ export default function Home() {
       )}
 
       {/* Header */}
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Horace Mann <span className="text-red-600">PTSA</span> Calendar Editor
-          </h1>
-          <p className="text-gray-600">Click on any day to add an event</p>
-        </div>
-        <div className="flex gap-2">
-          <PdfDownload events={events} />
-          <CsvUpload onImport={handleCsvImport} />
-          <Button variant="outline" onClick={handleExport} disabled={events.length === 0}>
-            Export CSV
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={events.length === 0}>
-                Clear All
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear all events?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all {events.length} events. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearAll}>
-                  Yes, clear all
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      <header className="mb-4 lg:mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">
+              Horace Mann <span className="text-red-600">PTSA</span> Calendar
+            </h1>
+            <p className="text-sm text-gray-600 hidden sm:block">Click on any day to add an event</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <PdfDownload events={events} />
+            <CsvUpload onImport={handleCsvImport} />
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={events.length === 0} className="text-xs sm:text-sm">
+              Export
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={events.length === 0} className="text-xs sm:text-sm">
+                  Clear
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all events?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {events.length} events. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearAll}>
+                    Yes, clear all
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </header>
 
       {/* Main layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Left column - Calendar */}
-        <div>
+        <div className="pb-16 lg:pb-0">
           {/* Legend */}
           <div className="mb-4">
             <CalendarLegend />
           </div>
 
           {/* Calendar Grid */}
-          <CalendarGrid events={events} onDayClick={handleDayClick} />
+          <CalendarGrid events={events} onDayClick={handleDayClick} selectedDate={viewingDate} />
         </div>
 
-        {/* Right column - Event List */}
-        <div>
+        {/* Right column - Event List (desktop only) */}
+        <div className="hidden lg:block">
           <h2 className="mb-3 text-lg font-semibold">
             Events ({events.length})
           </h2>
@@ -315,9 +331,22 @@ export default function Home() {
             events={events}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            selectedDate={viewingDate}
+            onClearSelection={handleClearSelection}
+            onAddEvent={handleAddEventForDate}
           />
         </div>
       </div>
+
+      {/* Mobile Event Drawer (mobile only) */}
+      <MobileEventDrawer
+        events={events}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        selectedDate={viewingDate}
+        onClearSelection={handleClearSelection}
+        onAddEvent={handleAddEventForDate}
+      />
 
       {/* Add/Edit Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

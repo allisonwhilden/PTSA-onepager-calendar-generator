@@ -1,7 +1,13 @@
 import { put, head, del } from '@vercel/blob';
 import { EventsStore, CalendarEvent } from '../calendar/types';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const BLOB_FILENAME = 'events.json';
+const LOCAL_STORAGE_PATH = path.join(process.cwd(), '.local-events.json');
+
+// Check if we should use local storage (no Vercel Blob token)
+const USE_LOCAL_STORAGE = !process.env.BLOB_READ_WRITE_TOKEN;
 
 // Default empty store
 function createEmptyStore(schoolYear: number = 2025): EventsStore {
@@ -12,8 +18,27 @@ function createEmptyStore(schoolYear: number = 2025): EventsStore {
   };
 }
 
-// Read events from Vercel Blob
+// Local storage functions for development
+async function getLocalEvents(): Promise<EventsStore> {
+  try {
+    const data = await fs.readFile(LOCAL_STORAGE_PATH, 'utf-8');
+    return JSON.parse(data) as EventsStore;
+  } catch {
+    return createEmptyStore();
+  }
+}
+
+async function saveLocalEvents(store: EventsStore): Promise<void> {
+  store.lastModified = new Date().toISOString();
+  await fs.writeFile(LOCAL_STORAGE_PATH, JSON.stringify(store, null, 2));
+}
+
+// Read events from Vercel Blob or local storage
 export async function getEvents(): Promise<EventsStore> {
+  if (USE_LOCAL_STORAGE) {
+    return getLocalEvents();
+  }
+
   try {
     // Check if blob exists
     const blobInfo = await head(BLOB_FILENAME).catch(() => null);
@@ -36,8 +61,12 @@ export async function getEvents(): Promise<EventsStore> {
   }
 }
 
-// Save events to Vercel Blob
+// Save events to Vercel Blob or local storage
 export async function saveEvents(store: EventsStore): Promise<void> {
+  if (USE_LOCAL_STORAGE) {
+    return saveLocalEvents(store);
+  }
+
   store.lastModified = new Date().toISOString();
 
   // Delete old blob if exists (Vercel Blob doesn't support overwrite)

@@ -47,8 +47,8 @@ export function PdfDownload({
   };
 
   return (
-    <Button onClick={handleDownload} disabled={isGenerating}>
-      {isGenerating ? 'Generating...' : 'Download PDF'}
+    <Button onClick={handleDownload} disabled={isGenerating} size="sm" className="text-xs sm:text-sm">
+      {isGenerating ? 'Generating...' : 'PDF'}
     </Button>
   );
 }

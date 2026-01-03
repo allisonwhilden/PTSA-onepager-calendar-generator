@@ -16,10 +16,10 @@ const legendItems: { type: LegendItemType; display: string }[] = [
 
 export function CalendarLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 text-sm">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm sm:gap-4">
       {legendItems.map(({ type, display }) => {
         return (
-          <div key={type} className="flex items-center gap-1.5">
+          <div key={type} className="flex items-center gap-1">
             <LegendIcon type={type} />
             <span>{display}</span>
           </div>

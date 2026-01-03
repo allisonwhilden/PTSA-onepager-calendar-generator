@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface DayCellProps {
   cell: CalendarCell | null;
   onClick?: (cell: CalendarCell) => void;
+  isSelected?: boolean;
 }
 
 // Map event types to visual styles
@@ -19,7 +20,7 @@ const markStyles: Record<EventType, string> = {
   closure_possible: 'stripe-pattern', // Diagonal stripes
 };
 
-export function DayCell({ cell, onClick }: DayCellProps) {
+export function DayCell({ cell, onClick, isSelected }: DayCellProps) {
   if (!cell) {
     return <div className="h-8 w-8" />;
   }
@@ -75,7 +76,8 @@ export function DayCell({ cell, onClick }: DayCellProps) {
         'relative flex h-8 w-8 cursor-pointer items-center justify-center text-sm transition-colors hover:bg-blue-100',
         bgClass,
         isWeekend && !bgClass && 'text-gray-400',
-        isBold && 'font-black'
+        isBold && 'font-black',
+        isSelected && 'ring-2 ring-blue-500 ring-offset-1 rounded-sm'
       )}
     >
       {renderDayContent()}

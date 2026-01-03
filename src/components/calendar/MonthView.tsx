@@ -8,19 +8,24 @@ const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 interface MonthViewProps {
   month: MonthData;
   onDayClick?: (cell: CalendarCell) => void;
+  selectedDate?: Date | null;
 }
 
-export function MonthView({ month, onDayClick }: MonthViewProps) {
-  // Split cells into weeks (7 days each)
-  const weeks: (CalendarCell | null)[][] = [];
-  for (let i = 0; i < month.cells.length; i += 7) {
-    weeks.push(month.cells.slice(i, i + 7));
-  }
+export function MonthView({ month, onDayClick, selectedDate }: MonthViewProps) {
+  // Check if a cell matches the selected date
+  const isCellSelected = (cell: CalendarCell | null): boolean => {
+    if (!cell || !selectedDate) return false;
+    return (
+      cell.date.getFullYear() === selectedDate.getFullYear() &&
+      cell.date.getMonth() === selectedDate.getMonth() &&
+      cell.date.getDate() === selectedDate.getDate()
+    );
+  };
 
   return (
-    <div className="rounded-lg border bg-white p-2">
+    <div className="rounded-lg border bg-white p-1.5 sm:p-2">
       {/* Month name */}
-      <h3 className="mb-2 text-center text-sm font-semibold">{month.name}</h3>
+      <h3 className="mb-1 sm:mb-2 text-center text-xs sm:text-sm font-semibold">{month.name}</h3>
 
       {/* Day names header */}
       <div className="mb-1 grid grid-cols-7 gap-0.5">
@@ -37,7 +42,12 @@ export function MonthView({ month, onDayClick }: MonthViewProps) {
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-0.5">
         {month.cells.map((cell, index) => (
-          <DayCell key={index} cell={cell} onClick={onDayClick} />
+          <DayCell
+            key={index}
+            cell={cell}
+            onClick={onDayClick}
+            isSelected={isCellSelected(cell)}
+          />
         ))}
       </div>
     </div>
