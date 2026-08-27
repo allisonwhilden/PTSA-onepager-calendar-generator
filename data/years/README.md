@@ -7,7 +7,7 @@ One file per school year, named for the year it covers: `2026-27.toml`.
 1. **Copy the newest config.**
 
    ```bash
-   cp data/years/2025-26.toml data/years/2026-27.toml
+   cp data/years/2026-27.toml data/years/2027-28.toml
    ```
 
 2. **Set the three values** in the new file:
@@ -38,7 +38,7 @@ One file per school year, named for the year it covers: `2026-27.toml`.
    the first run for a new year fails on purpose:
 
    ```
-   No snapshot for 2026-27. This year's page has never been reviewed
+   No snapshot for 2027-28. This year's page has never been reviewed
    ```
 
    Build it, look the PDF over, then record it so future changes show as a diff:

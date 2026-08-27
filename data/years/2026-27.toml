@@ -1,0 +1,23 @@
+# Horace Mann PTSA calendar - 2026-27 school year.
+# District dates verified against the official LWSD one-page calendar
+# ("2026-27 Calendar FINAL", updated 7/2026).
+
+[calendar]
+organization = "Horace Mann PTSA"
+
+[dates]
+# First Wednesday with early release. Every Wednesday from here through
+# last_day is marked automatically -- these are not rows in the CSV.
+# LWSD: "Sept. 9 - Wednesday early release schedule begins".
+early_release_start = 2026-09-09
+
+# Last day of school. Bounds the early-release run.
+# LWSD: "June 16 - Half-Day - Last Day of School (K-12)".
+last_day = 2027-06-16
+
+# Days drawn with the first/last-day box (the "First/Last" legend key): the days
+# school starts and ends. Both first days belong here -- grades 1-12 on 8/31 and
+# kindergarten on 9/3 -- because each is the start of school for its population.
+# The CSV also uses first_day/last_day for dates that are NOT year boundaries
+# (SNAPS, quarter and semester ends); those are listed but not boxed.
+boxed_days = [2026-08-31, 2026-09-03, 2027-06-16]

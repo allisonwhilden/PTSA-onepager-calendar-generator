@@ -33,7 +33,7 @@ re-record with step 4.
 Two files, no code changes. See **[data/years/README.md](data/years/README.md)**.
 
 ```bash
-cp data/years/2025-26.toml data/years/2026-27.toml   # then edit the dates inside
+cp data/years/2026-27.toml data/years/2027-28.toml   # then edit the dates inside
 # replace the rows in data/all_events.csv
 python python/build.py --check
 ```
@@ -174,7 +174,7 @@ These two come from `data/years/<year>.toml`, not the CSV:
 ```
 data/
   all_events.csv          the dates
-  years/2025-26.toml      per-year config (two dates, plus the boxed days)
+  years/2026-27.toml      per-year config (two dates, plus the boxed days)
 python/
   build.py                CLI
   calendar_gen/
