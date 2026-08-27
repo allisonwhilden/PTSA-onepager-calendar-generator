@@ -1,0 +1,20 @@
+# Horace Mann PTSA calendar - 2025-26 school year.
+# Copy this file to start a new year. See README.md in this folder.
+
+[calendar]
+organization = "Horace Mann PTSA"
+
+[dates]
+# First Wednesday with early release. Every Wednesday from here through
+# last_day is marked automatically -- these are not rows in the CSV.
+early_release_start = 2025-09-10
+
+# Last day of school. Bounds the early-release run.
+last_day = 2026-06-17
+
+# Days drawn with the first/last-day box in the grid (the "First/Last" legend key).
+# These are the school year's own boundaries. The CSV also uses first_day/last_day
+# for per-population dates -- kindergarten, SNAPS, secondary semester ends -- which
+# are listed in the dates column but are not boxed, because the legend promises
+# the start and end of school.
+boxed_days = [2025-09-02, 2025-09-05, 2026-06-17]

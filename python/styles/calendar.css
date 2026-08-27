@@ -129,12 +129,8 @@ html, body {
   color: #000;
 }
 
-.day.mark-first_day,
-.day.mark-first_day_1_12,
-.day.mark-first_day_k,
-.day.mark-last_day {
-  /* No background, diamond symbol will indicate these days */
-}
+/* First/last days carry no fill -- the box around the number marks them.
+   See .day.diamond span. */
 
 .day.mark-early_release {
   font-weight: 900;
