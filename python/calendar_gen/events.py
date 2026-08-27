@@ -47,22 +47,27 @@ class Problem:
     hint: str = ""
 
 
+def format_problems(problems: list[Problem]) -> str:
+    """Render problems or warnings identically, so the two never drift apart."""
+    lines = []
+    for p in problems:
+        lines.append(f"  row {p.row}: {p.message}")
+        if p.hint:
+            lines.append(f"          {p.hint}")
+    return "\n".join(lines)
+
+
 class ValidationError(Exception):
     """One or more rows in the CSV could not be used."""
 
     def __init__(self, path: Path, problems: list[Problem]):
         self.path = path
         self.problems = problems
-        super().__init__(self._format())
-
-    def _format(self) -> str:
-        n = len(self.problems)
-        lines = [f"{self.path}: {n} problem{'s' if n != 1 else ''}", ""]
-        for p in self.problems:
-            lines.append(f"  row {p.row}: {p.message}")
-            if p.hint:
-                lines.append(f"          {p.hint}")
-        return "\n".join(lines)
+        n = len(problems)
+        super().__init__(
+            f"{path}: {n} problem{'s' if n != 1 else ''}\n\n"
+            + format_problems(problems)
+        )
 
 
 def _parse_date(value: str) -> dt.date | None:
@@ -122,6 +127,15 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
             except ValueError as exc:
                 problems.append(Problem(offset, f"unreadable date: {exc}",
                                         "dates must be YYYY-MM-DD"))
+                continue
+
+            if single and (start or end):
+                # Silently preferring one would collapse a week to a day -- the
+                # exact bug this validator exists to catch.
+                problems.append(Problem(
+                    offset, "has both a 'date' and a date range",
+                    "use one or the other, not both",
+                ))
                 continue
 
             if single:

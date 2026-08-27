@@ -30,6 +30,11 @@ class SchoolYear:
     early_release_start: dt.date
     last_day: dt.date
 
+    #: The word in the organization name drawn in the PTSA red. Split here
+    #: rather than in the template, which used to recover it by deleting the
+    #: literal "PTSA" from the name -- that mangled every other name.
+    accent: str = "PTSA"
+
     #: Days drawn with the first/last-day box. These are the school year's own
     #: boundaries, which is why they live here rather than in the CSV -- the CSV
     #: uses first_day/last_day for per-population dates too (kindergarten, SNAPS,
@@ -53,6 +58,17 @@ class SchoolYear:
     def last_printed_day(self) -> dt.date:
         end = dt.date(self.start_year + 1, FIRST_MONTH, 1)
         return end - dt.timedelta(days=1)
+
+    @property
+    def header_parts(self) -> tuple[str, str]:
+        """The title split into a plain lead and an accented tail.
+
+        Falls back to the whole name unaccented when it does not end in the
+        accent word, so an unexpected name renders plainly instead of wrongly.
+        """
+        if self.accent and self.organization.endswith(self.accent):
+            return self.organization[: -len(self.accent)].strip(), self.accent
+        return self.organization, ""
 
     def months(self) -> list[tuple[int, int]]:
         """(year, month) for each printed month, August through July."""
@@ -146,15 +162,63 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
 
     calendar = raw.get("calendar", {})
     dates = raw.get("dates", {})
+    problems: list[str] = []
 
-    missing = [k for k in ("early_release_start", "last_day") if k not in dates]
-    if missing:
-        raise ValueError(f"{path}: [dates] is missing {', '.join(missing)}")
+    for key in ("early_release_start", "last_day"):
+        if key not in dates:
+            problems.append(f"[dates] is missing {key}")
+        elif not isinstance(dates[key], dt.date):
+            problems.append(
+                f"[dates] {key} must be a bare date like 2026-09-09, "
+                f"not {dates[key]!r} -- quoting it makes it a string"
+            )
 
-    return SchoolYear(
+    boxed = dates.get("boxed_days", [])
+    if not isinstance(boxed, list):
+        problems.append("[dates] boxed_days must be a list of dates")
+        boxed = []
+    for value in boxed:
+        if not isinstance(value, dt.date):
+            problems.append(
+                f"[dates] boxed_days entry {value!r} must be a bare date "
+                f"like 2026-09-01, not a quoted string"
+            )
+
+    if problems:
+        raise ValueError(f"{path}:\n  " + "\n  ".join(problems))
+
+    year = SchoolYear(
         start_year=start_year,
         organization=calendar.get("organization", "PTSA"),
+        accent=calendar.get("accent", "PTSA"),
         early_release_start=dates["early_release_start"],
         last_day=dates["last_day"],
-        boxed_days=frozenset(dates.get("boxed_days", [])),
+        boxed_days=frozenset(boxed),
     )
+
+    # Dates that fall outside the printed span draw nothing at all, silently --
+    # the classic symptom of a config copied forward without editing.
+    if year.early_release_start > year.last_day:
+        problems.append(
+            f"[dates] early_release_start ({year.early_release_start}) is after "
+            f"last_day ({year.last_day}), so no Wednesday would be marked"
+        )
+    span = (year.first_printed_day, year.last_printed_day)
+    for key, value in (("early_release_start", year.early_release_start),
+                       ("last_day", year.last_day)):
+        if not span[0] <= value <= span[1]:
+            problems.append(
+                f"[dates] {key} ({value}) is outside the {year.label} calendar, "
+                f"which covers {span[0]} to {span[1]}"
+            )
+    for value in sorted(year.boxed_days):
+        if not span[0] <= value <= span[1]:
+            problems.append(
+                f"[dates] boxed_days entry {value} is outside the {year.label} "
+                f"calendar ({span[0]} to {span[1]}), so no box would be drawn"
+            )
+
+    if problems:
+        raise ValueError(f"{path}:\n  " + "\n  ".join(problems))
+
+    return year

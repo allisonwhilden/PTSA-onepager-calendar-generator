@@ -25,13 +25,15 @@ numbers, without spending time rendering.
 Two files, no code changes. See **[data/years/README.md](data/years/README.md)**.
 
 ```bash
-cp data/years/2025-26.toml data/years/2026-27.toml   # set the two dates inside
+cp data/years/2025-26.toml data/years/2026-27.toml   # then edit the dates inside
 # replace the rows in data/all_events.csv
 python python/build.py --check
 ```
 
 `build.py` picks the current school year from today's date, so once the config
-exists it builds automatically from August onward.
+exists it builds automatically from August onward. Until it exists, the build
+still works — it uses the newest year it has and says so — but **publishing is
+skipped**, so an ended school year is never served as the current calendar.
 
 ---
 
@@ -63,6 +65,7 @@ python python/build.py --year 2025      # a specific year
 python python/build.py --check          # validate only
 python python/build.py --strict         # treat warnings as errors
 python python/build.py --out cal.pdf    # somewhere specific
+python python/build.py --require-current-year   # fail if the year has ended
 ```
 
 Runs from any directory.
@@ -73,10 +76,13 @@ Runs from any directory.
 pytest
 ```
 
-67 tests covering type resolution, CSV validation, grid construction,
-early-release marking, date consolidation and year selection — plus a golden
-snapshot of the rendered page and an assertion that the PDF is exactly one
-Letter page.
+79 tests covering type resolution, CSV validation, config validation, grid
+construction, early-release marking, date consolidation and year selection —
+plus a golden snapshot of the rendered page and an assertion that the PDF is
+exactly one Letter page.
+
+The two PDF tests skip where WeasyPrint's system libraries are absent; the
+snapshot and everything else still run.
 
 When you change the page on purpose, re-record the snapshot:
 
@@ -117,9 +123,11 @@ Also accepted as spellings of the above: `holiday`, `first_day_k`,
 `first_day_1_12`, `closure_day`, `possible_school_day`, `potential_school_day`,
 `grades_due`, `kinder_family_conn`.
 
-A day carrying something with no visual — an `informational` date, say — gets an
-asterisk, pointing the reader at the dates list. Anything already drawn speaks
-for itself.
+A day carrying an event whose type draws nothing — an `informational` date, say —
+gets an asterisk pointing the reader at the dates list. A fill or a circle speaks
+for that event, so those days get no asterisk. The first/last-day box comes from
+the year config rather than from an event, so a boxed day still points at the
+list for the detail.
 
 **A type that isn't in this table fails the build**, naming the row. The
 generator never guesses what an unknown type should look like. See

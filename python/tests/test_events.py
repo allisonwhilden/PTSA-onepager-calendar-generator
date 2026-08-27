@@ -91,3 +91,24 @@ def test_shipped_csv_is_valid(real_csv):
     """The data we actually publish must always pass validation."""
     events, _ = ev.load_events(real_csv)
     assert len(events) > 0
+
+
+def test_both_a_date_and_a_range_is_an_error(write_csv):
+    """Silently preferring one collapses a week to a day -- the Staff
+    Appreciation Week bug, but passing --strict clean."""
+    with pytest.raises(ev.ValidationError) as caught:
+        ev.load_events(write_csv(
+            HEADER + "2026-05-04,2026-05-04,2026-05-08,ptsa_event,Staff Week,\n"))
+    assert "both" in str(caught.value)
+
+
+def test_problem_formatting_is_shared(write_csv):
+    """build.py prints warnings and events.py prints errors; one formatter."""
+    problems = [ev.Problem(7, "something", "a hint")]
+    rendered = ev.format_problems(problems)
+    assert "row 7: something" in rendered
+    assert "a hint" in rendered
+    try:
+        ev.load_events(write_csv(HEADER + "2025-10-01,,,nope,X,\n"))
+    except ev.ValidationError as exc:
+        assert ev.format_problems(exc.problems) in str(exc)

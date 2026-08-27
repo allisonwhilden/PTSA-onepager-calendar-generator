@@ -29,10 +29,7 @@ def report(problems, heading: str) -> None:
     if not problems:
         return
     print(f"\n{heading}", file=sys.stderr)
-    for problem in problems:
-        print(f"  row {problem.row}: {problem.message}", file=sys.stderr)
-        if problem.hint:
-            print(f"          {problem.hint}", file=sys.stderr)
+    print(events_mod.format_problems(problems), file=sys.stderr)
 
 
 def main() -> int:
@@ -73,6 +70,12 @@ def main() -> int:
         "--strict", action="store_true",
         help="Treat warnings as errors.",
     )
+    parser.add_argument(
+        "--require-current-year", action="store_true",
+        help="Fail unless the year being built is the current school year. "
+             "Used before publishing, so an ended year is never served as "
+             "the current calendar.",
+    )
     args = parser.parse_args()
 
     # --- school year -----------------------------------------------------
@@ -82,6 +85,19 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+    if args.require_current_year:
+        current = school_year.current_start_year()
+        if start_year != current:
+            wanted = school_year.label_for(current)
+            print(
+                f"error: the current school year is {wanted}, but the newest "
+                f"config available is {year.label}, which has already ended.\n"
+                f"       Add data/years/{wanted}.toml and this year's rows in "
+                f"{args.data.name} before publishing.",
+                file=sys.stderr,
+            )
+            return 3
 
     if args.print_label:
         print(year.label)

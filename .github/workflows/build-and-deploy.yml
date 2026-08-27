@@ -43,7 +43,7 @@ jobs:
           pip install -r python/requirements.txt
 
       - name: Validate event data
-        run: python python/build.py --check
+        run: python python/build.py --check --strict
 
       - name: Test
         run: python -m pytest python/tests -q
@@ -66,6 +66,26 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
+
+          # The published PDF sits behind a link the README calls "the current
+          # calendar". Serving a school year that has already ended is the same
+          # silent staleness this pipeline exists to prevent, so say so loudly
+          # and publish nothing rather than overwrite it.
+          if ! python python/build.py --require-current-year --print-label >/dev/null; then
+            {
+              echo "### Calendar not published"
+              echo
+              echo "There is no config for the current school year, so the only"
+              echo "calendar that can be built has already ended. Publishing it"
+              echo 'would put a stale calendar behind the "current calendar" link.'
+              echo
+              echo 'Add `data/years/<year>.toml` and this year'"'"'s rows in'
+              echo '`data/all_events.csv`. See `data/years/README.md`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Skipped publishing: no config for the current school year."
+            exit 0
+          fi
+
           NAME="$(basename "$PDF")"
           LABEL="$(python python/build.py --print-label)"
           cp "$PDF" /tmp/calendar.pdf

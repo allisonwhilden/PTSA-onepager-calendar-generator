@@ -38,7 +38,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV, render nothing
 python python/build.py --year 2025
-pytest                            # 67 tests, ~2s
+pytest                            # 79 tests, ~2s
 ```
 
 Runs from any directory. If a command needs a `cd` first, that's a bug.
@@ -75,11 +75,13 @@ Review that diff before committing. It is the only review the printed page gets.
   `first_day`/`last_day` rows. Those types are used for per-population dates
   (kindergarten, SNAPS, semester ends) which are listed but not boxed.
 
-- **The asterisk has one rule:** a day gets `*` when it carries an event with no
-  visual of its own, so the grid gives the reader no hint that something is
-  listed. Anything already drawn — a fill, a circle, a box — speaks for itself.
-  Do not add special cases; the previous version had eight and nobody could
-  predict its output.
+- **The asterisk has one rule:** a day gets `*` when it carries an *event* whose
+  type draws nothing — no fill, no circle — so the grid gives the reader no hint
+  that something is listed. A fill or a circle speaks for that event.
+  The first/last-day box does not, because it comes from the year config rather
+  than from any event: it says a boundary falls here, not which one, so a boxed
+  day still points at the list. Do not add special cases; the previous version
+  had eight and nobody could predict its output.
 
 - **Repeat events fold together** in the dates list, grouped by label. This is
   deliberate — the page is tight.
@@ -100,3 +102,8 @@ PDF to the `gh-pages` branch on every push to `main` touching `data/` or
 `python/`. The path filters must match where the files actually are — they
 silently stopped matching once before, and the published PDF went stale for
 eight months without anyone noticing.
+
+The deploy step runs `--require-current-year` first and **skips publishing** if
+the only buildable year has already ended, writing the reason to the job
+summary. Republishing an ended calendar behind a link the README calls "the
+current calendar" is the same silent staleness, just with a green check.

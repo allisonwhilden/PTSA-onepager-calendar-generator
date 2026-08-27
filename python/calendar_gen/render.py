@@ -37,7 +37,8 @@ def render_html(
     template = env.get_template("calendar.html")
     return template.render(
         title=f"{year.organization} | {year.title}",
-        organization=year.organization,
+        header_lead=year.header_parts[0],
+        header_accent=year.header_parts[1],
         year_label=year.label,
         months=months,
         important=important,

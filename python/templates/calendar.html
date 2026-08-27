@@ -2,7 +2,7 @@
 {% block body %}
 <div class="page-wrapper">
   <header class="topbar">
-    <div class="title">{{ organization | replace("PTSA", "") | trim }} <span class="accent">PTSA</span> | {{ year_label }} Calendar</div>
+    <div class="title">{{ header_lead }}{% if header_accent %} <span class="accent">{{ header_accent }}</span>{% endif %} | {{ year_label }} Calendar</div>
     <div class="logo-area"></div>
   </header>
 

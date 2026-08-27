@@ -87,14 +87,6 @@ def resolve(raw: str) -> EventType:
         raise UnknownEventType(raw) from None
 
 
-def is_known(raw: str) -> bool:
-    """True when ``raw`` resolves to a declared type."""
-    try:
-        resolve(raw)
-    except UnknownEventType:
-        return False
-    return True
-
 
 def known_names() -> list[str]:
     """Every accepted spelling, for error messages."""

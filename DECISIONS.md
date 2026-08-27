@@ -62,7 +62,7 @@ carries the duplicate renderer and an unauthenticated write API.
 
 ### What
 
-Every event type is declared once, in the registry in `python/event_types.py`. A type in
+Every event type is declared once, in the registry in `python/calendar_gen/event_types.py`. A type in
 the CSV that isn't in the registry is a **validation error naming the row** — not a
 default, not a silent skip.
 

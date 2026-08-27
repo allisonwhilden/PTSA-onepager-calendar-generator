@@ -80,10 +80,13 @@ def build_day(date: dt.date, events: list[Event],
               boxed_days: frozenset[dt.date] = frozenset()) -> Day:
     """One cell, styled from the types landing on it.
 
-    The asterisk marks a day carrying something the grid cannot show. If an
-    event has no fill, no box and no circle, the cell looks like any other day,
-    so the reader needs a pointer to the dates list. Anything already drawn --
-    a black fill, a PTSA circle, stripes -- speaks for itself.
+    The asterisk marks a day carrying an *event* the grid cannot show. A fill or
+    a circle speaks for its own event; a type that draws neither leaves the cell
+    looking like any other day, so the reader needs a pointer to the dates list.
+
+    The box is deliberately not part of that test. It comes from the year config
+    rather than from any event, so it says a boundary falls here without saying
+    which one -- a boxed day still points at the list for the detail.
     """
     fills: list[str] = []
     for event in events:

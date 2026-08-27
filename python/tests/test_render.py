@@ -70,13 +70,16 @@ def test_the_grades_due_days_are_not_black(real_csv, years_dir):
 
 
 # --- the actual PDF --------------------------------------------------------
-
-weasyprint = pytest.importorskip(
-    "weasyprint", reason="WeasyPrint needs system libraries; skipped where absent")
+# WeasyPrint needs system libraries, so the two tests below skip where it is
+# absent. The skip lives in the fixture, not at module scope: a module-level
+# importorskip would take the golden snapshot and the regression guard above
+# down with it, and `UPDATE_GOLDEN=1 pytest python/tests/test_render.py` would
+# silently record nothing.
 
 
 @pytest.fixture(scope="module")
 def built_pdf(tmp_path_factory, real_csv, years_dir):
+    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
     year = school_year.load(years_dir, 2025)
     events, _ = ev.load_events(real_csv)
     by_date = layout.events_by_date(events, year)
