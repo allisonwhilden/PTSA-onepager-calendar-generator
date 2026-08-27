@@ -90,7 +90,7 @@ From the repo root:
 pytest
 ```
 
-102 tests covering type resolution, CSV validation, config validation, grid
+103 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.
