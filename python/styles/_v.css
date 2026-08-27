@@ -346,3 +346,6 @@ html, body {
   color: #aaa;
   margin: 0 2pt;
 }
+
+.day.circle span { width:10.5pt; height:10.5pt; line-height:9.0pt;
+        margin-top:-0.75pt; margin-bottom:-0.75pt; top:0; }

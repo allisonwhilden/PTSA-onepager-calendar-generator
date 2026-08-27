@@ -43,13 +43,32 @@ def rendered_html(shipped_year, shipped_events):
     )
 
 
-def test_html_matches_the_snapshot(rendered_html, shipped_year, request):
+STYLESHEET_MARKER = "\n\n<!-- ===== python/styles/calendar.css ===== -->\n"
+
+
+@pytest.fixture(scope="session")
+def snapshot_text(rendered_html):
+    """What the snapshot records: the page *and* the stylesheet that paints it.
+
+    base.html links the stylesheet rather than inlining it, so an HTML-only
+    snapshot saw none of the appearance. Changing the no-school fill from black
+    to white left every test green and the snapshot byte-identical, while the
+    printed page lost all its no-school days. CLAUDE.md promises the snapshot is
+    the only review the printed page gets; recording the CSS beside the HTML is
+    what makes that true.
+    """
+    css = (render.PYTHON_DIR / "styles" / "calendar.css").read_text(encoding="utf-8")
+    return rendered_html + STYLESHEET_MARKER + css
+
+
+def test_page_and_stylesheet_match_the_snapshot(snapshot_text, shipped_year, request):
     """Any change to the printed page shows up here as a reviewable diff.
 
     Intentional change? Re-record with:  UPDATE_GOLDEN=1 pytest python/tests
     """
     golden = (request.path.parent / "golden"
               / f"calendar-{shipped_year.label}.html")
+    rendered_html = snapshot_text
 
     if os.environ.get("UPDATE_GOLDEN"):
         golden.parent.mkdir(exist_ok=True)
@@ -121,19 +140,24 @@ def test_every_listed_date_is_inside_the_printed_year(
 def laid_out(rendered_html):
     """The page laid out once, shared by every test that needs geometry.
 
-    Laying the same HTML out per-test cost about a second each.
+    Goes through render.layout_pages rather than calling WeasyPrint directly, so
+    these tests exercise the same base_url wiring the real build depends on.
     """
-    weasyprint = pytest.importorskip(
-        "weasyprint", reason="WeasyPrint needs system libraries")
-    return weasyprint.HTML(
-        string=rendered_html, base_url=str(render.PYTHON_DIR)).render()
+    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    return render.layout_pages(rendered_html)
 
 
 @pytest.fixture(scope="session")
-def built_pdf(tmp_path_factory, laid_out):
-    path = tmp_path_factory.mktemp("pdf") / "calendar.pdf"
-    laid_out.write_pdf(target=str(path))
-    return path
+def built_pdf(tmp_path_factory, rendered_html):
+    """Written through render.write_pdf -- the function `build.py` itself calls.
+
+    Deliberately not `laid_out.write_pdf(...)`: that skipped write_pdf entirely,
+    so dropping its base_url or its mkdir left the suite green while
+    `python python/build.py` wrote an unstyled PDF or crashed.
+    """
+    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    return render.write_pdf(rendered_html,
+                            tmp_path_factory.mktemp("pdf") / "calendar.pdf")
 
 
 def _boxes(page):
@@ -141,11 +165,16 @@ def _boxes(page):
 
     WeasyPrint boxes carry no parent pointer, so track it on the way down.
     """
+    root = getattr(page, "_page_box", None)
+    if root is None:  # pragma: no cover - only on an unpinned WeasyPrint
+        pytest.skip("this WeasyPrint does not expose page._page_box; "
+                    "the geometry helpers need updating, not the page")
+
     def walk(box, chain=()):
         yield box, chain
         for child in getattr(box, "all_children", lambda: [])():
             yield from walk(child, chain + (box,))
-    return walk(page._page_box)
+    return walk(root)
 
 
 def _week_rows(page):
@@ -239,9 +268,10 @@ def test_ptsa_circles_stay_inside_their_row(laid_out):
     for circle, row in circles:
         row_top, row_bottom = row.position_y, row.position_y + row.border_height()
         top, bottom = circle.position_y, circle.position_y + circle.border_height()
-        # 1px of tolerance: the ring may sit on the cell border, not past it.
+        # The ring now clears its row on both sides (~0.6px), so the tolerance
+        # is only float noise -- not headroom for a partial fix.
         over = max(row_top - top, bottom - row_bottom)
-        if over > 1.0:
+        if over > 0.25:
             spills.append(round(over, 2))
 
     assert not spills, (

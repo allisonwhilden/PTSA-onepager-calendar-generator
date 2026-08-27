@@ -83,10 +83,15 @@ def test_asking_for_a_year_with_no_config_is_an_error(fake_years):
 
 
 def test_shipped_config_loads(years_dir):
-    year = sy.load(years_dir, 2025)
-    assert year.label == "2025-26"
+    """Resolved, not pinned: hardcoding a year here would mean deleting a
+    retired config turns pytest red, and a year roll is meant to need no Python
+    changes at all."""
+    start_year, _ = sy.resolve_start_year(years_dir)
+    year = sy.load(years_dir, start_year)
+    assert year.label == sy.label_for(start_year)
     assert year.organization == "Horace Mann PTSA"
-    assert year.early_release_start == dt.date(2025, 9, 10)
+    assert year.early_release_start.weekday() == sy.WEDNESDAY
+    assert year.first_printed_day <= year.early_release_start <= year.last_day
 
 
 def test_printed_span_is_a_full_twelve_months(year):
@@ -185,7 +190,8 @@ def test_header_splits_without_mangling_the_name(org, expected):
 
 
 def test_shipped_config_still_accents_ptsa(years_dir):
-    assert sy.load(years_dir, 2025).header_parts == ("Horace Mann", "PTSA")
+    start_year, _ = sy.resolve_start_year(years_dir)
+    assert sy.load(years_dir, start_year).header_parts == ("Horace Mann", "PTSA")
 
 
 def test_a_date_time_is_rejected_rather_than_crashing_later(tmp_path):

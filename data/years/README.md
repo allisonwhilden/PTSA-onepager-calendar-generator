@@ -72,10 +72,14 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
    ```
 
 No code changes and no workflow changes -- but step 5 is not optional: the
-snapshot is the only review the printed page gets. `build.py` picks the current
-school year by today's date, so the new config takes over automatically from the
-August it starts. Until that August it keeps building the newest year it has and
-says so, and publishing is skipped rather than serving an ended calendar.
+snapshot is the only review the printed page gets.
+
+`build.py` builds the school year that *today* falls in. A config added early
+simply waits: it takes over on the August its own year begins, and until then
+the current year keeps building normally. The fallback only applies when the
+current school year has no config at all -- then the build uses the newest
+config it has, says so, and **publishing is skipped** rather than serving a
+calendar that has already ended.
 
 To build a specific year regardless of today's date: `--year 2026`.
 Only years whose rows are still in the CSV can be built -- asking for a

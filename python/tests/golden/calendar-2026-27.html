@@ -2981,3 +2981,353 @@
 
 </body>
 </html>
+
+<!-- ===== python/styles/calendar.css ===== -->
+/* LWSD one-page calendar - Compact Single-Page Design */
+@page {
+  size: Letter;
+  margin: 18pt; /* 0.25 inch margins - tighter for single-page fit */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: Arial, sans-serif;
+  font-size: 7.5pt;
+  line-height: 1.1;
+}
+
+/* Main wrapper - prevents page breaks inside */
+.page-wrapper {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Header - Modern minimal design */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  padding: 6pt 0 8pt 0;
+  margin-bottom: 8pt;
+}
+.topbar .title {
+  font-size: 12pt;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #222;
+}
+.topbar .title .accent {
+  color: #C40A0C;
+}
+.topbar .logo-area {
+  font-size: 6pt;
+  color: #666;
+}
+
+/* Month grid - flexbox with balanced spacing */
+.year-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 4pt;
+}
+
+/* Individual month - exactly 1/3 width minus gaps */
+.month {
+  width: 32.5%;
+  margin-bottom: 6pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.month header {
+  font-weight: 700;
+  font-size: 7pt;
+  text-align: center;
+  margin-bottom: 2pt;
+  padding: 2pt 4pt;
+  letter-spacing: 0.02em;
+}
+
+/* Calendar table */
+.month-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.month-grid thead th {
+  font-size: 5.5pt;
+  padding: 2pt 0;
+  border-bottom: 0.5pt solid #ddd;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #666;
+}
+.month-grid tbody td {
+  border: 0.5pt solid #ddd;
+  text-align: center;
+  font-size: 6.5pt;
+  padding: 1pt 0;
+  height: 11pt;
+  vertical-align: middle;
+}
+
+/* Square box around number for special first/last days */
+.day.diamond span {
+  border: 0.75pt solid #000;
+  padding: 0 1.5pt;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 1;
+  font-size: 6pt;
+  margin-right: 1pt;
+}
+
+/* Weekend days - subtle styling */
+.day.weekend {
+  color: #999;
+}
+
+/* Event marking */
+.day.mark-no_school {
+  background: #000;
+  color: #fff;
+}
+
+.day.mark-half_day {
+  background: #ccc;
+  color: #000;
+}
+
+/* Potential school day if closures occur: grey diagonal stripes */
+.day.mark-closure_possible {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
+  color: #000;
+}
+
+/* First/last days carry no fill -- the box around the number marks them.
+   See .day.diamond span. */
+
+.day.mark-early_release {
+  font-weight: 900;
+  color: #000;
+}
+
+/* Circle around number for PTSA events.
+   A day can be both boxed (year config) and circled (a PTSA event on the first
+   day, say). These rules have equal specificity, so the circle would silently
+   win and the box would vanish -- .day.diamond.circle span below keeps both. */
+/* The circle has to satisfy two things at once, and both are tested:
+
+   1. It must not make its week row taller than the others. As an inline-block
+      on the baseline a 12pt circle drove its row from 14.7pt to 19.3pt, so
+      weeks with a PTSA event were visibly taller.
+      -> Negative vertical margins: for an inline-block the *margin* box is what
+         the line box measures, so the circle contributes less height than it
+         draws. Guarded by test_every_week_row_is_the_same_height.
+
+   2. It must not spill into the week below. Margins alone fixed the row height
+      but left the circle drawing at 12pt inside a ~11pt row, so 34 of them hung
+      4pt into the next row -- the Nov 12 ring crossed the grid line, and on a
+      black no-school cell it drew right over it.
+      -> 10pt is the largest size that satisfies both: at 10.5pt and above the
+         row grows again. Guarded by test_ptsa_circles_stay_inside_their_row. */
+.day.circle span {
+  border: 1pt solid #C40A0C;
+  border-radius: 50%;
+  width: 10pt;
+  height: 10pt;
+  display: inline-block;
+  font-weight: normal;
+  line-height: 8.5pt;
+  text-align: center;
+  padding: 0;
+  font-size: 6pt;
+  margin-right: 1pt;
+  vertical-align: middle;
+  margin-top: -1pt;
+  margin-bottom: -1pt;
+
+  /* vertical-align: middle centres the *margin* box on the parent's baseline
+     plus half its x-height, not on the cell, which left the ring sitting ~1pt
+     low -- 0.74px of it below the row. This recentres it without touching
+     layout, since the box is relatively positioned. */
+  position: relative;
+  top: -1pt;
+}
+
+/* Both marks on one day (a PTSA event on the first day of school). Higher
+   specificity than .day.circle span, so the box is not silently overwritten. */
+.day.diamond.circle span {
+  /* outline-offset is unknown to WeasyPrint 61.2 and silently dropped, so the
+     separation comes from padding on the circle instead. */
+  border: 1pt solid #C40A0C;
+  border-radius: 50%;
+  outline: 0.75pt solid #000;
+  padding: 0.5pt;
+  font-weight: bold;
+}
+
+/* A PTSA event on a no-school day: red on black is barely legible, so the ring
+   goes white. 8/27 (Colt Corral, inside the LEAP Days block) is the live case.
+   Must sit after .day.diamond.circle span, which re-declares the `border`
+   shorthand at equal specificity and would otherwise put the red back. Uses the
+   border-color longhand so it survives either ordering. */
+.day.mark-no_school.circle span {
+  border-color: #fff;
+}
+
+/* PTSA event on early release day - keep bold */
+.day.circle.mark-early_release span {
+  font-weight: 900;
+}
+
+/* Horizontal Legend Bar */
+.legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  padding: 6pt 0;
+  margin: 4pt 0;
+  font-size: 6.5pt;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  margin: 0 10pt;
+}
+
+.legend-item .chip,
+.legend-item .legend-diamond,
+.legend-item .legend-circle,
+.legend-item .symbol {
+  margin-right: 3pt;
+}
+
+/* Chip styles for legend */
+.chip {
+  width: 6pt;
+  height: 6pt;
+  border: 0.5pt solid #000;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.chip.no_school {
+  background: #000;
+}
+.chip.half_day {
+  background: #ccc;
+}
+.chip.closure_possible {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9d9d9,
+    #d9d9d9 2pt,
+    #ffffff 2pt,
+    #ffffff 4pt
+  );
+}
+
+.symbol {
+  font-weight: bold;
+  font-size: 7pt;
+  display: inline-block;
+  width: 6pt;
+  text-align: center;
+}
+
+/* Legend demo icons */
+.legend-diamond {
+  border: 0.75pt solid #000;
+  padding: 0 1pt;
+  display: inline-block;
+  font-weight: bold;
+  font-size: 5pt;
+  line-height: 1;
+}
+.legend-circle {
+  border: 1pt solid #C40A0C;
+  border-radius: 50%;
+  width: 10pt;      /* matches .day.circle span so the key looks like the grid */
+  height: 10pt;
+  line-height: 8.5pt;
+  text-align: center;
+  display: inline-block;
+  font-weight: normal;
+  font-size: 5pt;
+}
+.bold-demo {
+  font-weight: 900;
+  color: #000;
+}
+
+/* Important Dates - Table-based for WeasyPrint compatibility */
+.important {
+  width: 100%;
+  padding-top: 4pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+/* Two-column table layout for Important Dates */
+.important-dates-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 6.5pt;
+  line-height: 1.2;
+}
+.important-dates-table td {
+  vertical-align: top;
+  padding: 0 8pt;
+  width: 50%;
+}
+.important-dates-table .date-item {
+  padding: 1pt 2pt;
+  break-inside: avoid;
+}
+.important-dates-table .date-item b {
+  font-weight: 700;
+  margin-right: 3pt;
+}
+
+/* District events styling */
+.important-dates-table .district-event {
+  color: #555;
+}
+
+/* PTSA events styling with accent */
+.important-dates-table .ptsa-event {
+  border-left: 1.5pt solid #C40A0C;
+  padding-left: 3pt;
+  color: #C40A0C;
+}
+
+/* Footer */
+.page-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 5.5pt;
+  color: #888;
+  padding-top: 6pt;
+  margin-top: 6pt;
+}
+.page-footer span {
+  margin: 0 6pt;
+}
+.page-footer .separator {
+  color: #aaa;
+  margin: 0 2pt;
+}

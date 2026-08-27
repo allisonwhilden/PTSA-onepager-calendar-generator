@@ -64,13 +64,23 @@ def _load_weasyprint():
     return HTML
 
 
+def layout_pages(html: str):
+    """Lay the page out and return WeasyPrint's rendered document.
+
+    The single place that knows the base_url the stylesheet link needs. Both
+    write_pdf and count_pages go through it, so a test that measures geometry
+    exercises the same wiring the real build uses.
+    """
+    HTML = _load_weasyprint()
+    # base_url resolves the stylesheet link in base.html.
+    return HTML(string=html, base_url=str(PYTHON_DIR)).render()
+
+
 def write_pdf(html: str, out_path: Path) -> Path:
     """Render HTML to a PDF at ``out_path``."""
-    HTML = _load_weasyprint()
-
+    document = layout_pages(html)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    # base_url resolves the stylesheet link in base.html.
-    HTML(string=html, base_url=str(PYTHON_DIR)).write_pdf(target=str(out_path))
+    document.write_pdf(target=str(out_path))
     return out_path
 
 
@@ -81,7 +91,6 @@ def count_pages(html: str) -> int | None:
     only in CI where the remedy is far from whoever edited the CSV.
     """
     try:
-        HTML = _load_weasyprint()
+        return len(layout_pages(html).pages)
     except WeasyPrintUnavailable:
         return None
-    return len(HTML(string=html, base_url=str(PYTHON_DIR)).render().pages)
