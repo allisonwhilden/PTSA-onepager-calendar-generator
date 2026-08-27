@@ -5,6 +5,7 @@ import datetime as dt
 from calendar_gen import layout
 from calendar_gen.event_types import resolve
 from calendar_gen.events import Event
+from calendar_gen.school_year import SchoolYear
 
 
 def make(label, type_name, start, end=None):
@@ -36,10 +37,22 @@ def test_leading_blanks_put_the_first_day_on_the_right_weekday(year):
     assert september.cells[1].number == 1
 
 
-def test_leap_day_is_drawn(year):
+def test_february_length_follows_the_year(year):
     february = next(m for m in layout.build_months({}, year)
                     if m.name == "February")
-    assert max(c.number for c in february.cells if c) == 28  # 2026 is not a leap year
+    assert max(c.number for c in february.cells if c) == 28  # 2026 is common
+
+
+def test_leap_day_is_drawn():
+    """2027-28 spans February 2028, which has 29 days."""
+    leap = SchoolYear(start_year=2027, organization="T",
+                      early_release_start=dt.date(2027, 9, 8),
+                      last_day=dt.date(2028, 6, 15))
+    february = next(m for m in layout.build_months({}, leap)
+                    if m.name == "February")
+    days = [c.number for c in february.cells if c]
+    assert max(days) == 29
+    assert len(days) == 29
 
 
 # --- early release ---------------------------------------------------------

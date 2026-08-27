@@ -67,6 +67,10 @@ def main() -> int:
         help="Print the school-year label (e.g. 2025-26) and exit.",
     )
     parser.add_argument(
+        "--print-organization", action="store_true",
+        help="Print the organization name from the year config and exit.",
+    )
+    parser.add_argument(
         "--strict", action="store_true",
         help="Treat warnings as errors.",
     )
@@ -91,8 +95,8 @@ def main() -> int:
         if start_year != current:
             wanted = school_year.label_for(current)
             print(
-                f"error: the current school year is {wanted}, but the newest "
-                f"config available is {year.label}, which has already ended.\n"
+                f"error: the current school year is {wanted}, but this build is "
+                f"{year.label} ({why}).\n"
                 f"       Add data/years/{wanted}.toml and this year's rows in "
                 f"{args.data.name} before publishing.",
                 file=sys.stderr,
@@ -101,6 +105,10 @@ def main() -> int:
 
     if args.print_label:
         print(year.label)
+        return 0
+
+    if args.print_organization:
+        print(year.organization)
         return 0
 
     print(f"Building {year.label} ({why})")
@@ -115,17 +123,22 @@ def main() -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    warnings += events_mod.outside_year(
+    # Notices are separate from warnings on purpose: rows for another school
+    # year are dropped by design, so --strict must not turn the ordinary act of
+    # staging next year's dates into a red build.
+    notices = events_mod.outside_year(
         all_events, year.first_printed_day, year.last_printed_day
     )
     report(warnings, f"{args.data}: {len(warnings)} warning(s)")
+    report(notices, f"{args.data}: {len(notices)} row(s) not on this calendar")
 
     if warnings and args.strict:
         print("\nerror: warnings treated as errors (--strict)", file=sys.stderr)
         return 1
 
     if args.check:
-        print(f"\nOK: {len(all_events)} events, {len(warnings)} warning(s)")
+        print(f"\nOK: {len(all_events)} events, {len(warnings)} warning(s), "
+              f"{len(notices)} not on this calendar")
         return 0
 
     # --- render ----------------------------------------------------------

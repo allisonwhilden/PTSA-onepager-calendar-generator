@@ -20,9 +20,6 @@ class EventType:
     #: ``None`` means the day looks like any other day.
     fill: str | None = None
 
-    #: Draw the first/last-day box around the number.
-    box: bool = False
-
     #: Draw the PTSA circle around the number.
     circle: bool = False
 
@@ -36,7 +33,7 @@ class EventType:
         Days carrying an invisible event get an asterisk, because the grid alone
         gives the reader no hint that something is listed for that day.
         """
-        return self.fill is None and not self.box and not self.circle
+        return self.fill is None and not self.circle
 
 
 #: Every type the calendar can draw. Adding a kind of date means adding a line here.
@@ -47,8 +44,9 @@ REGISTRY: dict[str, EventType] = {
         EventType("half_day", fill="half_day"),
         EventType("early_release", fill="early_release"),
         EventType("closure_possible", fill="closure_possible"),
-        # These are listed dates, not the box. The box is a year-level
-        # boundary set in the year config -- see SchoolYear.boxed_days.
+        # Listed dates, drawn with nothing of their own. The first/last-day box
+        # is a year-level mark set in the year config -- see boxed_days -- not a
+        # property of these types.
         EventType("first_day"),
         EventType("last_day"),
         EventType("ptsa_event", circle=True, label_prefix="PTSA: "),

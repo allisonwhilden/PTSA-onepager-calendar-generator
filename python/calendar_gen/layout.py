@@ -50,7 +50,6 @@ class Month:
 class ImportantDate:
     when: str
     label: str
-    notes: str
     is_ptsa: bool
     sort_key: dt.date
 
@@ -155,21 +154,24 @@ def build_important_dates(events: list[Event], year: SchoolYear) -> list[Importa
     Meeting' -- the page is tight, and a reader scanning for board meetings
     would rather find them together.
     """
-    grouped: dict[tuple[str, str, str], list[dt.date]] = defaultdict(list)
+    # Grouped by label and type only. `notes` never prints, so including it
+    # would split one heading into two identical-looking lines.
+    grouped: dict[tuple[str, str], list[dt.date]] = defaultdict(list)
     for event in events:
-        if event.end < year.first_printed_day or event.start > year.last_printed_day:
-            continue
-        key = (event.label, event.notes, event.type.name)
-        grouped[key].extend(event.dates())
+        # Clip to the printed span rather than dropping the whole event: a range
+        # straddling 1 August would otherwise list dates the grid cannot show.
+        dates = [d for d in event.dates()
+                 if year.first_printed_day <= d <= year.last_printed_day]
+        if dates:
+            grouped[(event.label, event.type.name)].extend(dates)
 
     listed = []
-    for (label, notes, type_name), dates in grouped.items():
+    for (label, type_name), dates in grouped.items():
         event_type = REGISTRY[type_name]
         unique = sorted(set(dates))
         listed.append(ImportantDate(
             when=_consolidate(unique),
             label=f"{event_type.label_prefix}{label}",
-            notes=notes,
             is_ptsa=event_type.circle,
             sort_key=unique[0],
         ))

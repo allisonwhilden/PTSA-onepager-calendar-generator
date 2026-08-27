@@ -25,19 +25,37 @@ def test_range_expands_inclusively(write_csv):
 
 
 def test_every_problem_is_reported_together_with_its_row(write_csv):
-    path = write_csv(HEADER + """
-        2025-09-02,,,first_day,Fine,
-        2025-10-01,,,pizza_party,Unknown type,
-        2025-11-03,,,no_school,,
-        ,2026-02-10,2026-02-03,no_school,Backwards,
-        ,,,ptsa_event,No date,
-    """)
+    path = write_csv(
+        HEADER
+        + "2025-09-02,,,first_day,Fine,\n"          # line 2
+        + "2025-10-01,,,pizza_party,Unknown,\n"     # line 3
+        + "2025-11-03,,,no_school,,\n"              # line 4
+        + ",2026-02-10,2026-02-03,no_school,Back,\n"  # line 5
+        + ",,,ptsa_event,No date,\n"                # line 6
+    )
     with pytest.raises(ev.ValidationError) as caught:
         ev.load_events(path)
 
-    rows = {p.row for p in caught.value.problems}
-    # Row 1 is the header and row 2 is the good row, so 3-6 are the bad ones.
-    assert rows == {3, 4, 5, 6}
+    assert {p.row for p in caught.value.problems} == {3, 4, 5, 6}
+
+
+def test_row_numbers_are_file_lines_not_record_counts(write_csv):
+    """A blank line must not shift every later number.
+
+    csv skips blank rows without consuming a record, so counting records drifts
+    and points the reader at the wrong line -- exactly when the file has been
+    hand-edited or round-tripped through a spreadsheet.
+    """
+    path = write_csv(
+        HEADER
+        + "2025-09-02,,,first_day,Fine,\n"      # line 2
+        + "\n"                                   # line 3, blank
+        + "2025-10-01,,,pizza_party,Bad,\n"     # line 4
+    )
+    with pytest.raises(ev.ValidationError) as caught:
+        ev.load_events(path)
+
+    assert [p.row for p in caught.value.problems] == [4]
 
 
 def test_unknown_type_message_names_the_type_and_the_alternatives(write_csv):

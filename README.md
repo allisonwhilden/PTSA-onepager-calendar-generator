@@ -76,10 +76,14 @@ Runs from any directory.
 pytest
 ```
 
-79 tests covering type resolution, CSV validation, config validation, grid
+83 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.
+
+The snapshot follows whichever year the repo ships, so rolling to a new year
+fails once with "this year's page has never been reviewed" — look it over, then
+re-record.
 
 The two PDF tests skip where WeasyPrint's system libraries are absent; the
 snapshot and everything else still run.

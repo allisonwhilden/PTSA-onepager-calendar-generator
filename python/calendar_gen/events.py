@@ -16,6 +16,8 @@ from .event_types import EventType, UnknownEventType, known_names, resolve
 
 CSV_COLUMNS = ("date", "start_date", "end_date", "type", "label", "notes")
 
+_EXTRA = "__surplus__"
+
 
 @dataclass(frozen=True)
 class Event:
@@ -92,7 +94,7 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
     warnings: list[Problem] = []
 
     with path.open(newline="", encoding="utf-8-sig") as handle:
-        reader = csv.DictReader(handle)
+        reader = csv.DictReader(handle, restkey=_EXTRA)
         missing = [c for c in ("type", "label") if c not in (reader.fieldnames or ())]
         if missing:
             raise ValidationError(
@@ -101,8 +103,22 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
                          f"expected header: {','.join(CSV_COLUMNS)}")],
             )
 
-        # Row 1 is the header, so data starts at row 2.
-        for offset, raw in enumerate(reader, start=2):
+        for raw in reader:
+            # reader.line_num counts physical lines, so the number matches what
+            # an editor shows even when the file has blank or quoted-multiline
+            # rows -- enumerate() would drift.
+            offset = reader.line_num
+
+            surplus = raw.pop(_EXTRA, None)
+            if surplus:
+                problems.append(Problem(
+                    offset,
+                    f"has {len(surplus)} more field(s) than the header",
+                    "an unquoted comma in a label or note splits the row -- "
+                    'wrap the value in double quotes',
+                ))
+                continue
+
             row = {k: (v or "").strip() for k, v in raw.items() if k}
 
             label = row.get("label", "")
@@ -177,10 +193,16 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
 
 
 def outside_year(events: list[Event], first: dt.date, last: dt.date) -> list[Problem]:
-    """Events that fall outside the printed span, and so silently never appear."""
+    """Events that fall outside the printed span, and so never appear.
+
+    These are *notices*, not warnings: leaving last year's rows in place, or
+    staging next year's early, is a normal way to work on this file, and both
+    are documented as reported-and-dropped. Escalating them under --strict
+    would turn the everyday workflow into a red build.
+    """
     return [
         Problem(e.row, f"{e.label!r} ({e.start}) is outside the calendar span",
-                f"the calendar covers {first} to {last}")
+                f"the calendar covers {first} to {last}, so it is not printed")
         for e in events
         if e.end < first or e.start > last
     ]

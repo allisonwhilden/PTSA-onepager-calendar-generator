@@ -87,5 +87,5 @@ calendar, add it to the registry and say what it looks like — a one-line chang
 it's a deliberate choice rather than an accident of what some lookup happened to return.
 
 Types that should be listed in Important Dates but shouldn't change how the school day
-looks use `mark = None` — see `informational` in the registry, which is what `grades_due`
-uses.
+looks set no `fill` and no `circle` — see `informational` in the registry, which
+is what `grades_due` uses.

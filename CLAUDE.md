@@ -38,7 +38,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV, render nothing
 python python/build.py --year 2025
-pytest                            # 79 tests, ~2s
+pytest                            # 83 tests, ~2s
 ```
 
 Runs from any directory. If a command needs a `cd` first, that's a bug.

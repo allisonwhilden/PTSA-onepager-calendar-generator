@@ -20,8 +20,8 @@ def test_grades_due_is_listed_but_leaves_the_school_day_alone():
     resolved = et.resolve("grades_due")
     assert resolved.name == "informational"
     assert resolved.fill is None
-    assert not resolved.box
     assert not resolved.circle
+    assert resolved.is_invisible
 
 
 def test_no_alias_resolves_to_no_school_except_holiday():
@@ -34,8 +34,10 @@ def test_no_alias_resolves_to_no_school_except_holiday():
 
 
 def test_invisible_types_are_exactly_the_ones_with_no_drawing():
+    """The box is not in this test on purpose: it comes from the year config,
+    not from an event type. See DECISIONS.md."""
     for name, kind in et.REGISTRY.items():
-        drawn = bool(kind.fill) or kind.box or kind.circle
+        drawn = bool(kind.fill) or kind.circle
         assert kind.is_invisible is not drawn, name
 
 

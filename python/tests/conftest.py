@@ -1,17 +1,14 @@
 import datetime as dt
-import sys
 import textwrap
 from pathlib import Path
 
 import pytest
 
-# Tests import calendar_gen the same way build.py does.
-PYTHON_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PYTHON_DIR))
+from calendar_gen.school_year import SchoolYear
 
-REPO = PYTHON_DIR.parent
-
-from calendar_gen.school_year import SchoolYear  # noqa: E402
+# pytest.ini puts python/ on sys.path (pythonpath = python), so the import above
+# resolves the same way build.py does.
+REPO = Path(__file__).resolve().parent.parent.parent
 
 
 @pytest.fixture(scope="session")

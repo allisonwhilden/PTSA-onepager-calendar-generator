@@ -164,6 +164,20 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
     dates = raw.get("dates", {})
     problems: list[str] = []
 
+    # A typo like `boxed_day` would otherwise load as an empty set, printing a
+    # calendar with no box while the legend still advertises the key.
+    known_keys = {"early_release_start", "last_day", "boxed_days"}
+    for key in sorted(set(dates) - known_keys):
+        problems.append(
+            f"[dates] has an unrecognised key {key!r} "
+            f"(expected: {', '.join(sorted(known_keys))})"
+        )
+    for key in sorted(set(calendar) - {"organization", "accent"}):
+        problems.append(
+            f"[calendar] has an unrecognised key {key!r} "
+            f"(expected: organization, accent)"
+        )
+
     for key in ("early_release_start", "last_day"):
         if key not in dates:
             problems.append(f"[dates] is missing {key}")

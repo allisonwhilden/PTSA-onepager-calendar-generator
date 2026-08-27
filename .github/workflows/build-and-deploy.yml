@@ -88,6 +88,7 @@ jobs:
 
           NAME="$(basename "$PDF")"
           LABEL="$(python python/build.py --print-label)"
+          ORG="$(python python/build.py --print-organization)"
           cp "$PDF" /tmp/calendar.pdf
           rm -rf dist
 
@@ -116,7 +117,7 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Horace Mann PTSA Calendar $LABEL</title>
+            <title>$ORG Calendar $LABEL</title>
             <style>
               body { font-family: system-ui, -apple-system, Arial, sans-serif;
                      margin: 0 auto; max-width: 60rem; padding: 2rem 1.25rem 4rem;
@@ -131,7 +132,7 @@ jobs:
             </style>
           </head>
           <body>
-            <h1>Horace Mann PTSA Calendar $LABEL</h1>
+            <h1>$ORG Calendar $LABEL</h1>
             <p class="sub">Updated $(date +'%B %-d, %Y') &middot; one page, Letter size.</p>
             <a class="btn" href="calendar.pdf" download="$NAME">Download PDF</a>
             <iframe src="calendar.pdf" title="Calendar preview"></iframe>

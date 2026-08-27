@@ -137,7 +137,10 @@ html, body {
   color: #000;
 }
 
-/* Circle around number for PTSA events */
+/* Circle around number for PTSA events.
+   A day can be both boxed (year config) and circled (a PTSA event on the first
+   day, say). These rules have equal specificity, so the circle would silently
+   win and the box would vanish -- .day.diamond.circle span below keeps both. */
 .day.circle span {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
@@ -152,6 +155,16 @@ html, body {
   margin-right: 1pt;
   position: relative;
   top: 0;
+}
+
+/* Both marks on one day (a PTSA event on the first day of school). Higher
+   specificity than .day.circle span, so the box is not silently overwritten. */
+.day.diamond.circle span {
+  border: 1pt solid #C40A0C;
+  border-radius: 50%;
+  outline: 0.75pt solid #000;
+  outline-offset: 0.5pt;
+  font-weight: bold;
 }
 
 /* PTSA event on early release day - keep bold */
