@@ -38,7 +38,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV, render nothing
 python python/build.py --year 2025
-pytest                            # 83 tests, ~2s
+pytest                            # 93 tests, ~2s
 ```
 
 Runs from any directory. If a command needs a `cd` first, that's a bug.
@@ -72,8 +72,10 @@ Review that diff before committing. It is the only review the printed page gets.
   `no_school` or `half_day`. They are not CSV rows.
 
 - **The first/last-day box comes from `boxed_days` in the year config**, not from
-  `first_day`/`last_day` rows. Those types are used for per-population dates
-  (kindergarten, SNAPS, semester ends) which are listed but not boxed.
+  `first_day`/`last_day` rows. It marks the days school starts and ends — both
+  first days count, grades 1-12 and kindergarten. The CSV also uses those types
+  for dates that are not year boundaries (SNAPS, quarter and semester ends);
+  those are listed but not boxed.
 
 - **The asterisk has one rule:** a day gets `*` when it carries an *event* whose
   type draws nothing — no fill, no circle — so the grid gives the reader no hint
@@ -87,7 +89,9 @@ Review that diff before committing. It is the only review the printed page gets.
   deliberate — the page is tight.
 
 - **The calendar prints August through July**, twelve months, so the grid is a
-  full 3×4. Events outside that span are reported as warnings and dropped.
+  full 3×4. Rows outside that span are reported as *notices* and dropped —
+  deliberately not warnings, so `--strict` does not fail the build when you
+  stage next year's dates early or leave last year's in place.
 
 ## Rolling to a new school year
 

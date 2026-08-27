@@ -76,7 +76,7 @@ Runs from any directory.
 pytest
 ```
 
-83 tests covering type resolution, CSV validation, config validation, grid
+93 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.
@@ -147,10 +147,11 @@ These two come from `data/years/<year>.toml`, not the CSV:
 - **Early-release Wednesdays** are a rule, not data — every Wednesday between
   `early_release_start` and `last_day` is marked automatically, unless the day is
   already off or already short.
-- **The first/last-day box** is drawn on the days in `boxed_days`. The CSV also
-  uses `first_day`/`last_day` for per-population dates (kindergarten, SNAPS,
-  secondary semester ends); those are listed but not boxed, because the legend
-  promises the start and end of school.
+- **The first/last-day box** is drawn on the days in `boxed_days` — the days
+  school starts and ends, which here means both first days (grades 1-12 and
+  kindergarten) and the last day. The CSV also uses `first_day`/`last_day` for
+  dates that are not year boundaries (SNAPS, quarter and semester ends); those
+  are listed but not boxed.
 
 ---
 

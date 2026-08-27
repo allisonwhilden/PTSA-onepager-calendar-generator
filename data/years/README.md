@@ -13,7 +13,7 @@ One file per school year, named for the year it covers: `2026-27.toml`.
 2. **Set the three values** in the new file:
    - `early_release_start` — the first early-release Wednesday
    - `last_day` — the last day of school
-   - `boxed_days` — the days drawn with the first/last-day box
+   - `boxed_days` — the days school starts and ends, drawn with the box
 
    All three must fall inside the year being built. Dates left over from the
    previous year are rejected with a message saying so, rather than quietly
@@ -21,7 +21,9 @@ One file per school year, named for the year it covers: `2026-27.toml`.
 
 3. **Put the year's events in `data/all_events.csv`.** Replace the old year's rows;
    the calendar prints August through July of the year being built, so leftovers
-   from a previous year are reported as warnings and never appear.
+   from a previous year are reported as *notices* and never appear. Notices do
+   not fail the build even under `--strict`, so you can stage next year's dates
+   alongside this year's while you work.
 
 4. **Check it before you build:**
 

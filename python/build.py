@@ -50,11 +50,12 @@ def main() -> int:
         "--years-dir", type=Path, default=DEFAULT_YEARS,
         help=f"School-year configs (default: {DEFAULT_YEARS.relative_to(REPO)})",
     )
-    parser.add_argument(
+    where = parser.add_mutually_exclusive_group()
+    where.add_argument(
         "--out", type=Path, default=None,
         help="Output PDF path (default: build/<Org>-<year>-Calendar.pdf)",
     )
-    parser.add_argument(
+    where.add_argument(
         "--out-dir", type=Path, default=None,
         help="Directory to write into, keeping the derived filename.",
     )

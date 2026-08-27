@@ -18,6 +18,9 @@ CSV_COLUMNS = ("date", "start_date", "end_date", "type", "label", "notes")
 
 _EXTRA = "__surplus__"
 
+#: Longer than the printed year, so it can only be a mistyped end_date.
+MAX_RANGE_DAYS = 366
+
 
 @dataclass(frozen=True)
 class Event:
@@ -160,6 +163,15 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
                 if end < start:
                     problems.append(Problem(
                         offset, f"end_date {end} is before start_date {start}"))
+                    continue
+                if (end - start).days > MAX_RANGE_DAYS:
+                    problems.append(Problem(
+                        offset,
+                        f"{label!r} spans {(end - start).days + 1} days "
+                        f"({start} to {end})",
+                        "check the end date -- no calendar event runs longer "
+                        "than the school year",
+                    ))
                     continue
                 if start == end:
                     warnings.append(Problem(

@@ -12,9 +12,9 @@ early_release_start = 2025-09-10
 # Last day of school. Bounds the early-release run.
 last_day = 2026-06-17
 
-# Days drawn with the first/last-day box in the grid (the "First/Last" legend key).
-# These are the school year's own boundaries. The CSV also uses first_day/last_day
-# for per-population dates -- kindergarten, SNAPS, secondary semester ends -- which
-# are listed in the dates column but are not boxed, because the legend promises
-# the start and end of school.
+# Days drawn with the first/last-day box (the "First/Last" legend key): the days
+# school starts and ends. Both first days belong here -- grades 1-12 on 9/2 and
+# kindergarten on 9/5 -- because each is the start of school for its population.
+# The CSV also uses first_day/last_day for dates that are NOT year boundaries
+# (SNAPS, quarter and semester ends); those are listed but not boxed.
 boxed_days = [2025-09-02, 2025-09-05, 2026-06-17]

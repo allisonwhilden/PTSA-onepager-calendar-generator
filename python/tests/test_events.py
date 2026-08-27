@@ -130,3 +130,33 @@ def test_problem_formatting_is_shared(write_csv):
         ev.load_events(write_csv(HEADER + "2025-10-01,,,nope,X,\n"))
     except ev.ValidationError as exc:
         assert ev.format_problems(exc.problems) in str(exc)
+
+
+def test_an_absurdly_long_range_is_an_error(write_csv):
+    """A mistyped end_date (2035 for 2025) would otherwise paint the whole year
+    with no warning at all."""
+    with pytest.raises(ev.ValidationError) as caught:
+        ev.load_events(write_csv(
+            HEADER + ",2025-09-02,2035-09-02,ptsa_event,Staff Week,\n"))
+    assert "spans" in str(caught.value)
+
+
+def test_a_normal_break_is_not_flagged_as_too_long(write_csv):
+    events, warnings = ev.load_events(write_csv(
+        HEADER + ",2025-12-22,2026-01-02,no_school,Winter Break,\n"))
+    assert len(events) == 1
+    assert warnings == []
+
+
+def test_surplus_fields_are_an_error_not_a_silent_truncation(write_csv):
+    """An unquoted comma in a label is the commonest spreadsheet mistake."""
+    with pytest.raises(ev.ValidationError) as caught:
+        ev.load_events(write_csv(
+            HEADER + "2025-10-16,,,ptsa_event,Movie Night, Grades 3-5,extra\n"))
+    assert "more field" in str(caught.value)
+
+
+def test_a_quoted_comma_in_a_label_is_fine(write_csv):
+    events, _ = ev.load_events(write_csv(
+        HEADER + '2025-10-16,,,ptsa_event,"Movie Night, Grades 3-5",\n'))
+    assert events[0].label == "Movie Night, Grades 3-5"

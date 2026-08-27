@@ -32,7 +32,7 @@ pip install -r python/requirements.txt
 
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV, render nothing
-pytest                            # 83 tests, ~2s
+pytest                            # 93 tests, ~2s
 ```
 
 Everything runs from any directory. If a command needs a `cd` first, that's a bug.

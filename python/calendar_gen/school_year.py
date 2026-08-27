@@ -11,6 +11,12 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+
+def _is_plain_date(value: object) -> bool:
+    """A bare TOML date. datetime subclasses date, so isinstance alone lets a
+    date-time through and it explodes on the first comparison."""
+    return isinstance(value, dt.date) and not isinstance(value, dt.datetime)
+
 #: The calendar prints August through July, so the grid is a full 12 months.
 FIRST_MONTH = 8
 WEDNESDAY = 2  # date.weekday(): Monday is 0
@@ -99,7 +105,10 @@ def available_years(years_dir: str | Path) -> list[int]:
     years = []
     for path in Path(years_dir).glob("*.toml"):
         head = path.stem.split("-")[0]
-        if head.isdigit():
+        # Only canonical names, so the year we report always names a file that
+        # config_path() can actually open. "2026-2027.toml" would otherwise
+        # resolve to 2026 and then fail looking for "2026-27.toml".
+        if head.isdigit() and path.stem == label_for(int(head)):
             years.append(int(head))
     return sorted(years)
 
@@ -172,6 +181,11 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
             f"[dates] has an unrecognised key {key!r} "
             f"(expected: {', '.join(sorted(known_keys))})"
         )
+    if "organization" not in calendar:
+        problems.append(
+            '[calendar] is missing organization (e.g. "Horace Mann PTSA") -- '
+            "it names the header, the page title and the PDF filename"
+        )
     for key in sorted(set(calendar) - {"organization", "accent"}):
         problems.append(
             f"[calendar] has an unrecognised key {key!r} "
@@ -181,10 +195,11 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
     for key in ("early_release_start", "last_day"):
         if key not in dates:
             problems.append(f"[dates] is missing {key}")
-        elif not isinstance(dates[key], dt.date):
+        elif not _is_plain_date(dates[key]):
             problems.append(
                 f"[dates] {key} must be a bare date like 2026-09-09, "
-                f"not {dates[key]!r} -- quoting it makes it a string"
+                f"not {dates[key]!r} -- quoting it makes it a string, and a "
+                f"time makes it a date-time"
             )
 
     boxed = dates.get("boxed_days", [])
@@ -192,10 +207,10 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
         problems.append("[dates] boxed_days must be a list of dates")
         boxed = []
     for value in boxed:
-        if not isinstance(value, dt.date):
+        if not _is_plain_date(value):
             problems.append(
                 f"[dates] boxed_days entry {value!r} must be a bare date "
-                f"like 2026-09-01, not a quoted string"
+                f"like 2026-09-01 -- not a quoted string or a date-time"
             )
 
     if problems:
@@ -203,7 +218,7 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
 
     year = SchoolYear(
         start_year=start_year,
-        organization=calendar.get("organization", "PTSA"),
+        organization=calendar["organization"],
         accent=calendar.get("accent", "PTSA"),
         early_release_start=dates["early_release_start"],
         last_day=dates["last_day"],

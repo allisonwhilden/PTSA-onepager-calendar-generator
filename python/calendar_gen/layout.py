@@ -58,14 +58,20 @@ def events_by_date(events: list[Event], year: SchoolYear) -> dict[dt.date, list[
     """Map every printed date to the events landing on it, early release included."""
     by_date: dict[dt.date, list[Event]] = defaultdict(list)
     for event in events:
+        # Clipped like build_important_dates, so both agree on what counts as a
+        # date on this calendar -- and so one mistyped end_date cannot expand
+        # into millions of entries.
         for day in event.dates():
-            by_date[day].append(event)
+            if year.first_printed_day <= day <= year.last_printed_day:
+                by_date[day].append(event)
 
     # Early-release Wednesdays are a rule, not data -- but a day that is already
     # off or already short does not also get marked early release.
     for day in year.early_release_wednesdays():
         fills = {e.type.fill for e in by_date.get(day, ())}
-        if "no_school" in fills or "half_day" in fills:
+        # A day already off, already short, or already carrying its own
+        # early-release row from the CSV does not get a second one.
+        if fills & {"no_school", "half_day", "early_release"}:
             continue
         by_date[day].append(Event(
             start=day, end=day, type=EARLY_RELEASE,

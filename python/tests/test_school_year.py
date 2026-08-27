@@ -183,3 +183,41 @@ def test_header_splits_without_mangling_the_name(org, expected):
 
 def test_shipped_config_still_accents_ptsa(years_dir):
     assert sy.load(years_dir, 2025).header_parts == ("Horace Mann", "PTSA")
+
+
+def test_a_date_time_is_rejected_rather_than_crashing_later(tmp_path):
+    """datetime subclasses date, so a bare isinstance check lets it through and
+    it explodes on the first comparison instead of giving a clear message."""
+    d = write_year(tmp_path,
+                   'early_release_start = 2026-09-09T00:00:00\nlast_day = 2027-06-16\n')
+    with pytest.raises(ValueError) as caught:
+        sy.load(d, 2026)
+    assert "early_release_start" in str(caught.value)
+
+
+def test_a_misspelled_dates_key_is_rejected(tmp_path):
+    """`boxed_day` would otherwise load as an empty set: no box drawn, while the
+    legend still advertises one."""
+    d = write_year(tmp_path, 'early_release_start = 2026-09-09\nlast_day = 2027-06-16\n'
+                             'boxed_day = [2026-09-01]\n')
+    with pytest.raises(ValueError) as caught:
+        sy.load(d, 2026)
+    assert "boxed_day" in str(caught.value)
+
+
+def test_a_missing_organization_is_rejected(tmp_path):
+    (tmp_path / "2026-27.toml").write_text(
+        "[dates]\nearly_release_start = 2026-09-09\nlast_day = 2027-06-16\n")
+    with pytest.raises(ValueError) as caught:
+        sy.load(tmp_path, 2026)
+    assert "organization" in str(caught.value)
+
+
+def test_a_non_canonical_filename_is_ignored(tmp_path):
+    """2026-2027.toml would resolve to year 2026 and then fail opening
+    2026-27.toml -- an error naming a file the user never created."""
+    (tmp_path / "2026-2027.toml").write_text("[calendar]\norganization = 'T'\n")
+    (tmp_path / "2025-26.toml").write_text(
+        "[calendar]\norganization = 'T'\n\n[dates]\n"
+        "early_release_start = 2025-09-10\nlast_day = 2026-06-17\n")
+    assert sy.available_years(tmp_path) == [2025]

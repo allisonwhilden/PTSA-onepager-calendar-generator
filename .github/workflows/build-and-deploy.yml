@@ -6,12 +6,14 @@ on:
     paths:
       - 'data/**'
       - 'python/**'
+      - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   pull_request:
     branches: [main]
     paths:
       - 'data/**'
       - 'python/**'
+      - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   workflow_dispatch:
 
@@ -71,7 +73,20 @@ jobs:
           # calendar". Serving a school year that has already ended is the same
           # silent staleness this pipeline exists to prevent, so say so loudly
           # and publish nothing rather than overwrite it.
-          if ! python python/build.py --require-current-year --print-label >/dev/null; then
+          # Exit 3 means "the year has ended", which is a routine skip. Any
+          # other non-zero exit is a real failure and must not be reported as
+          # one -- that is how a broken build gets a green check.
+          set +e
+          LABEL="$(python python/build.py --require-current-year --print-label)"
+          probe=$?
+          set -e
+
+          if [ "$probe" -ne 0 ] && [ "$probe" -ne 3 ]; then
+            echo "::error::build.py failed with exit $probe"
+            exit "$probe"
+          fi
+
+          if [ "$probe" -eq 3 ]; then
             {
               echo "### Calendar not published"
               echo
@@ -87,7 +102,6 @@ jobs:
           fi
 
           NAME="$(basename "$PDF")"
-          LABEL="$(python python/build.py --print-label)"
           ORG="$(python python/build.py --print-organization)"
           cp "$PDF" /tmp/calendar.pdf
           rm -rf dist

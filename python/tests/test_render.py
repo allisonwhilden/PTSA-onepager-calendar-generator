@@ -12,6 +12,7 @@ import os
 
 import pytest
 
+from calendar_gen import event_types as et
 from calendar_gen import events as ev
 from calendar_gen import layout, render, school_year
 
@@ -69,37 +70,34 @@ def test_html_matches_the_snapshot(rendered_html, shipped_year, request):
         pytest.fail("Rendered page changed:\n\n" + diff[:4000])
 
 
-def test_informational_days_are_not_marked_no_school(
-        shipped_year, shipped_events):
+def test_deadline_rows_in_the_shipped_csv_draw_nothing(real_csv):
     """Regression guard for the bug that started the rewrite.
 
-    Derived from the CSV rather than hardcoded, so it keeps guarding whichever
-    year is shipping: every day whose only listed events draw nothing must stay
-    an ordinary day, and must point at the dates list.
+    Deliberately keyed on the *raw* CSV spelling rather than on is_invisible.
+    Testing via is_invisible is tautological -- flip the alias to no_school and
+    those rows simply stop being invisible, so the assertion never fires. This
+    asserts the mapping itself: a row that only records a deadline must never
+    resolve to a type that blacks out a school day.
     """
-    by_date = layout.events_by_date(shipped_events, shipped_year)
+    import csv as _csv
 
-    invisible_dates = {
-        d
-        for e in shipped_events if e.type.is_invisible
-        for d in e.dates()
-        if shipped_year.first_printed_day <= d <= shipped_year.last_printed_day
-    }
-    assert invisible_dates, "no informational dates in the CSV to guard"
+    with open(real_csv, newline="", encoding="utf-8-sig") as handle:
+        raw_types = {(r.get("type") or "").strip()
+                     for r in _csv.DictReader(handle)}
+    raw_types.discard("")
 
-    for date in sorted(invisible_dates):
-        day = layout.build_day(date, by_date[date], shipped_year.boxed_days)
-        assert day.has_more, f"{date} should point at the dates list"
-        # A day off may legitimately also carry an informational note
-        # (Juneteenth plus a grades deadline), so only assert that the
-        # informational event did not itself create the fill.
-        real_no_school = any(
-            e.type.fill == "no_school" for e in by_date[date]
-        ) and any(
-            e.type.name == "no_school" for e in by_date[date]
+    deadline_spellings = {"grades_due", "kinder_family_conn"}
+    present = raw_types & deadline_spellings
+    assert present, f"expected deadline rows in the CSV, saw {sorted(raw_types)}"
+
+    for spelling in sorted(present):
+        kind = et.resolve(spelling)
+        assert kind.fill is None, (
+            f"{spelling!r} resolves to fill={kind.fill!r}; a deadline must not "
+            f"change how the school day is drawn"
         )
-        if "no_school" in day.fills:
-            assert real_no_school, f"{date} wrongly marked no-school"
+        assert not kind.circle
+        assert kind.is_invisible
 
 
 def test_every_listed_date_is_inside_the_printed_year(

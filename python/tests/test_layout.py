@@ -175,3 +175,20 @@ def test_events_outside_the_span_are_not_listed(year):
     listed = layout.build_important_dates(
         [make("Ancient", "ptsa_event", dt.date(2019, 1, 1))], year)
     assert listed == []
+
+
+def test_a_csv_early_release_row_is_not_duplicated(year):
+    """The CSV already carries 'Wednesday early release begins'; the generated
+    rule must not append a second event to the same day."""
+    wednesday = dt.date(2025, 9, 10)
+    by_date = layout.events_by_date(
+        [make("Early release begins", "early_release", wednesday)], year)
+    assert len(by_date[wednesday]) == 1
+
+
+def test_dates_outside_the_printed_year_are_not_expanded(year):
+    """One mistyped end_date must not build millions of entries."""
+    long_run = make("Typo", "no_school", dt.date(2025, 9, 1), dt.date(2030, 9, 1))
+    by_date = layout.events_by_date([long_run], year)
+    assert all(year.first_printed_day <= d <= year.last_printed_day
+               for d in by_date)

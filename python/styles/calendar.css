@@ -160,10 +160,12 @@ html, body {
 /* Both marks on one day (a PTSA event on the first day of school). Higher
    specificity than .day.circle span, so the box is not silently overwritten. */
 .day.diamond.circle span {
+  /* outline-offset is unknown to WeasyPrint 61.2 and silently dropped, so the
+     separation comes from padding on the circle instead. */
   border: 1pt solid #C40A0C;
   border-radius: 50%;
   outline: 0.75pt solid #000;
-  outline-offset: 0.5pt;
+  padding: 0.5pt;
   font-weight: bold;
 }
 
