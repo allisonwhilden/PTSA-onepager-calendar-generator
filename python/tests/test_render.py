@@ -141,3 +141,9 @@ def test_the_page_is_not_empty(rendered_html, shipped_events):
     assert shipped_events, "no events in the shipped CSV"
     assert rendered_html.count("<td class=\"day") > 300  # 12 months x 42 cells
     assert "date-item" in rendered_html
+
+
+def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
+    """`--check` uses this to protect the one-page promise before a push."""
+    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    assert render.count_pages(rendered_html) == 1

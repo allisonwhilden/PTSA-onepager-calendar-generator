@@ -36,12 +36,14 @@ correctly.
 source .venv/bin/activate
 
 python python/build.py            # build the current school year into build/
-python python/build.py --check    # validate the CSV, render nothing
+python python/build.py --check    # validate the CSV and the one-page fit
 python python/build.py --year 2025
-pytest                            # 93 tests, ~2s
+pytest                            # 98 tests, ~2s
 ```
 
-Runs from any directory. If a command needs a `cd` first, that's a bug.
+`build.py` runs from any directory; if it ever needs a `cd` first, that's
+a bug. Run `pytest` from the repo root — pytest only honours `testpaths` when
+invoked from the directory holding `pytest.ini`.
 
 After changing anything that affects the printed page, run `pytest` — the golden
 snapshot will show you the diff. If the change was intentional, re-record it:

@@ -98,6 +98,10 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
 
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle, restkey=_EXTRA)
+        # Values are stripped below; header names need the same treatment, or a
+        # header written "date, start_date, ..." reports every column missing.
+        if reader.fieldnames:
+            reader.fieldnames = [name.strip() for name in reader.fieldnames]
         missing = [c for c in ("type", "label") if c not in (reader.fieldnames or ())]
         if missing:
             raise ValidationError(
@@ -113,7 +117,9 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
             offset = reader.line_num
 
             surplus = raw.pop(_EXTRA, None)
-            if surplus:
+            # A bare trailing comma yields [""], which is harmless. Only flag
+            # surplus that actually carries content -- a real field split.
+            if surplus and any((v or "").strip() for v in surplus):
                 problems.append(Problem(
                     offset,
                     f"has {len(surplus)} more field(s) than the header",

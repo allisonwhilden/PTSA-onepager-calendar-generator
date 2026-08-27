@@ -17,8 +17,9 @@ the tests, rebuilds the PDF and republishes it.
 2. Check it: `python python/build.py --check`
 3. Commit and push. The published PDF updates itself.
 
-`--check` validates every row and reports all problems at once with line
-numbers, without spending time rendering.
+`--check` validates every row, reports all problems at once with line numbers,
+and confirms the calendar still fits on one page — the one thing CI would
+otherwise catch only after you had pushed.
 
 ## Rolling to a new school year
 
@@ -62,7 +63,7 @@ pip install -r python/requirements.txt
 ```bash
 python python/build.py                  # current school year -> build/
 python python/build.py --year 2025      # a specific year
-python python/build.py --check          # validate only
+python python/build.py --check          # validate, and check the one-page fit
 python python/build.py --strict         # treat warnings as errors
 python python/build.py --out cal.pdf    # somewhere specific
 python python/build.py --require-current-year   # fail if the year has ended
@@ -72,11 +73,13 @@ Runs from any directory.
 
 ## Testing
 
+From the repo root:
+
 ```bash
 pytest
 ```
 
-93 tests covering type resolution, CSV validation, config validation, grid
+98 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.

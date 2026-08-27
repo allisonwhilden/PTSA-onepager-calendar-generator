@@ -160,3 +160,20 @@ def test_a_quoted_comma_in_a_label_is_fine(write_csv):
     events, _ = ev.load_events(write_csv(
         HEADER + '2025-10-16,,,ptsa_event,"Movie Night, Grades 3-5",\n'))
     assert events[0].label == "Movie Night, Grades 3-5"
+
+
+def test_a_spaced_header_still_resolves_its_columns(write_csv):
+    """A header written `date, start_date, ...` is a common hand-edit; it must
+    not report every column missing."""
+    events, _ = ev.load_events(write_csv(
+        "date, start_date, end_date, type, label, notes\n"
+        "2025-09-02,,,first_day,First Day,\n"))
+    assert events[0].label == "First Day"
+
+
+def test_a_trailing_comma_is_not_a_field_split(write_csv):
+    """One extra separator is harmless; only surplus with content is a split."""
+    events, warnings = ev.load_events(write_csv(
+        HEADER + "2025-10-16,,,ptsa_event,Movie Night,,\n"))
+    assert events[0].label == "Movie Night"
+    assert warnings == []

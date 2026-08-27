@@ -34,14 +34,30 @@ One file per school year, named for the year it covers: `2026-27.toml`.
    This validates every row and tells you about anything questionable, without
    spending time rendering.
 
-5. **Build it:**
+5. **Review the new page and record it.** The golden snapshot is per-year, so
+   the first run for a new year fails on purpose:
+
+   ```
+   No snapshot for 2026-27. This year's page has never been reviewed
+   ```
+
+   Build it, look the PDF over, then record it so future changes show as a diff:
+
+   ```bash
+   UPDATE_GOLDEN=1 pytest python/tests/test_render.py
+   ```
+
+   Until you do, `pytest` fails and the workflow will not publish.
+
+6. **Build it:**
 
    ```bash
    python python/build.py
    ```
 
-No code changes, and no workflow changes. `build.py` picks the current school year
-by today's date, so once `2026-27.toml` exists it builds automatically from August
+No code changes and no workflow changes -- but step 5 is not optional: the
+snapshot is the only review the printed page gets. `build.py` picks the current
+school year by today's date, so once `2026-27.toml` exists it builds automatically from August
 onward. Until then it builds the newest year it has and says so.
 
 To build a specific year regardless of today's date: `--year 2025`.

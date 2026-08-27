@@ -137,16 +137,45 @@ def main() -> int:
         print("\nerror: warnings treated as errors (--strict)", file=sys.stderr)
         return 1
 
-    if args.check:
-        print(f"\nOK: {len(all_events)} events, {len(warnings)} warning(s), "
-              f"{len(notices)} not on this calendar")
-        return 0
-
     # --- render ----------------------------------------------------------
     by_date = layout.events_by_date(all_events, year)
     months = layout.build_months(by_date, year)
     important = layout.build_important_dates(all_events, year)
+
+    # Every row landing outside the span means a blank calendar. Without this
+    # the usual half-finished year roll -- new config, last year's CSV -- passes
+    # --check --strict and CI goes green on a page with nothing on it.
+    if all_events and not important:
+        print(
+            f"\nerror: none of the {len(all_events)} rows in {args.data.name} "
+            f"fall inside {year.label} ({year.first_printed_day} to "
+            f"{year.last_printed_day}), so the calendar would be blank.",
+            file=sys.stderr,
+        )
+        return 1
+
     html = render.render_html(year, months, important)
+
+    if args.check:
+        pages = render.count_pages(html)
+        if pages is None:
+            print(f"\nOK: {len(all_events)} events, {len(important)} listed dates, "
+                  f"{len(warnings)} warning(s), {len(notices)} not on this calendar"
+                  f"\nNote: WeasyPrint is not installed, so the one-page check "
+                  f"was skipped.")
+            return 0
+        if pages != 1:
+            print(
+                f"\nerror: the calendar renders on {pages} pages. It must fit on "
+                f"one.\n       Remove or shorten a few entries in "
+                f"{args.data.name} -- the page is tight.",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"\nOK: {len(all_events)} events, {len(important)} listed dates, "
+              f"one page, {len(warnings)} warning(s), "
+              f"{len(notices)} not on this calendar")
+        return 0
 
     filename = f"{year.organization.replace(' ', '')}-{year.label}-Calendar.pdf"
     if args.out:

@@ -173,6 +173,16 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
     dates = raw.get("dates", {})
     problems: list[str] = []
 
+    # Written as a scalar rather than a table, these would either explode on
+    # .get() or iterate character by character, producing one bogus
+    # "unrecognised key" per letter.
+    for name, table in (("calendar", calendar), ("dates", dates)):
+        if not isinstance(table, dict):
+            raise ValueError(
+                f"{path}:\n  [{name}] must be a section written as [{name}], "
+                f"not a single value ({table!r})"
+            )
+
     # A typo like `boxed_day` would otherwise load as an empty set, printing a
     # calendar with no box while the legend still advertises the key.
     known_keys = {"early_release_start", "last_day", "boxed_days"}
@@ -181,6 +191,11 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
             f"[dates] has an unrecognised key {key!r} "
             f"(expected: {', '.join(sorted(known_keys))})"
         )
+    for key in ("organization", "accent"):
+        if key in calendar and not isinstance(calendar[key], str):
+            problems.append(
+                f"[calendar] {key} must be text in quotes, not {calendar[key]!r}"
+            )
     if "organization" not in calendar:
         problems.append(
             '[calendar] is missing organization (e.g. "Horace Mann PTSA") -- '

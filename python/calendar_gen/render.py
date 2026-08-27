@@ -54,3 +54,18 @@ def write_pdf(html: str, out_path: Path) -> Path:
     # base_url resolves the stylesheet link in base.html.
     HTML(string=html, base_url=str(PYTHON_DIR)).write_pdf(target=str(out_path))
     return out_path
+
+
+def count_pages(html: str) -> int | None:
+    """How many pages this HTML renders to, or None if WeasyPrint is absent.
+
+    Used by `--check` so the one-page promise is verified before a push, not
+    only in CI where the remedy is far from whoever edited the CSV.
+    """
+    try:
+        from weasyprint import HTML
+    except (ImportError, OSError):
+        # OSError: the Python package is installed but its system libraries
+        # are not, which raises at import time.
+        return None
+    return len(HTML(string=html, base_url=str(PYTHON_DIR)).render().pages)

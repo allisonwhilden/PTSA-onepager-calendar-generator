@@ -155,6 +155,12 @@ jobs:
           HTML
 
           git add -A
-          git commit -m "Calendar $LABEL from ${GITHUB_SHA::7}" || {
-            echo "No changes to publish"; exit 0; }
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+            exit 0
+          fi
+          # Any commit failure past this point is real -- an empty index is the
+          # only benign case and it is handled above. Swallowing it here is how
+          # a failed publish gets a green check.
+          git commit -m "Calendar $LABEL from ${GITHUB_SHA::7}"
           git push origin gh-pages

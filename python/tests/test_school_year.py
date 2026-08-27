@@ -221,3 +221,25 @@ def test_a_non_canonical_filename_is_ignored(tmp_path):
         "[calendar]\norganization = 'T'\n\n[dates]\n"
         "early_release_start = 2025-09-10\nlast_day = 2026-06-17\n")
     assert sy.available_years(tmp_path) == [2025]
+
+
+def test_a_scalar_section_gives_one_clear_error_not_one_per_character(tmp_path):
+    """`calendar = "..."` instead of `[calendar]` would otherwise iterate the
+    string and report an unrecognised key per letter."""
+    (tmp_path / "2026-27.toml").write_text(
+        'calendar = "Horace Mann PTSA"\n\n[dates]\n'
+        "early_release_start = 2026-09-09\nlast_day = 2027-06-16\n")
+    with pytest.raises(ValueError) as caught:
+        sy.load(tmp_path, 2026)
+    message = str(caught.value)
+    assert "[calendar] must be a section" in message
+    assert message.count("unrecognised") == 0
+
+
+def test_a_non_string_organization_is_rejected(tmp_path):
+    (tmp_path / "2026-27.toml").write_text(
+        "[calendar]\norganization = 5\n\n[dates]\n"
+        "early_release_start = 2026-09-09\nlast_day = 2027-06-16\n")
+    with pytest.raises(ValueError) as caught:
+        sy.load(tmp_path, 2026)
+    assert "organization" in str(caught.value)

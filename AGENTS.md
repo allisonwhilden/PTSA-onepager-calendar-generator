@@ -31,11 +31,12 @@ source .venv/bin/activate
 pip install -r python/requirements.txt
 
 python python/build.py            # build the current school year into build/
-python python/build.py --check    # validate the CSV, render nothing
-pytest                            # 93 tests, ~2s
+python python/build.py --check    # validate the CSV and the one-page fit
+pytest                            # 98 tests, ~2s
 ```
 
-Everything runs from any directory. If a command needs a `cd` first, that's a bug.
+`build.py` runs from any directory; if it ever needs a `cd` first, that's a
+bug. Run `pytest` from the repo root.
 
 After changing anything that affects the printed page, run `pytest`. The golden
 snapshot will show you the diff — **read it** before committing. It is the only
