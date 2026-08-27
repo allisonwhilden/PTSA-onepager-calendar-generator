@@ -22,6 +22,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -67,6 +69,7 @@ jobs:
           NAME="$(basename "$PDF")"
           LABEL="$(python python/build.py --print-label)"
           cp "$PDF" /tmp/calendar.pdf
+          rm -rf dist
 
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -76,8 +79,13 @@ jobs:
             git checkout -B gh-pages origin/gh-pages
           else
             git checkout --orphan gh-pages
-            git rm -rf . || true
+            git rm -rqf . || true
           fi
+
+          # gh-pages has no .gitignore of its own, so leftovers from the build
+          # (__pycache__, .pytest_cache) would otherwise be swept up by `add -A`
+          # and published to the public site.
+          git clean -fdxq
 
           cp /tmp/calendar.pdf calendar.pdf
           cp /tmp/calendar.pdf "calendar-$(date +%Y%m%d).pdf"
