@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *$py.class
 *.so
@@ -37,7 +38,6 @@ desktop.ini
 *.tmp
 *.bak
 *.backup
-debug_html.py
 data/*_backup.csv
 
 # Local environment files
@@ -47,14 +47,3 @@ data/*_backup.csv
 # Logs
 *.log
 
-# Node.js
-node_modules/
-.pnpm-store/
-
-# Next.js
-.next/
-out/
-
-# Events data (generated)
-data/events.json
-.vercel

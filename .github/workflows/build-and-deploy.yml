@@ -2,95 +2,170 @@ name: Build and Deploy Calendar PDF
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'data/**'
-      - 'templates/**'
-      - 'styles/**'
-      - 'build.py'
-      - 'requirements.txt'
-      - '.github/workflows/**'
+      - 'python/**'
+      - 'pytest.ini'
+      - '.github/workflows/build-and-deploy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'data/**'
+      - 'python/**'
+      - 'pytest.ini'
+      - '.github/workflows/build-and-deploy.yml'
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: python/requirements.txt
+
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-dev libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+          sudo apt-get install -y python3-dev libcairo2 libpango-1.0-0 \
+            libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r python/requirements.txt
+
+      - name: Validate event data
+        run: python python/build.py --check --strict
+
+      - name: Test
+        run: python -m pytest python/tests -q
+
+      # The filename carries the school year, which build.py derives from the
+      # configs in data/years -- so nothing here needs editing in a new year.
       - name: Build PDF
         run: |
-          python build.py --year 2025 --data data/all_events.csv --out /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
+          mkdir -p dist
+          python python/build.py --out-dir dist
+          echo "PDF=$(ls dist/*.pdf | head -1)" >> "$GITHUB_ENV"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HoraceMann-PTSA-Calendar
-          path: /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf
-      - name: Deploy PDF to GitHub Pages branch
+          name: calendar-pdf
+          path: dist/*.pdf
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
         run: |
+          set -euo pipefail
+
+          # The published PDF sits behind a link the README calls "the current
+          # calendar". Serving a school year that has already ended is the same
+          # silent staleness this pipeline exists to prevent, so say so loudly
+          # and publish nothing rather than overwrite it.
+          # Exit 3 means "the year has ended", which is a routine skip. Any
+          # other non-zero exit is a real failure and must not be reported as
+          # one -- that is how a broken build gets a green check.
+          set +e
+          LABEL="$(python python/build.py --require-current-year --print-label)"
+          probe=$?
+          set -e
+
+          if [ "$probe" -ne 0 ] && [ "$probe" -ne 3 ]; then
+            echo "::error::build.py failed with exit $probe"
+            exit "$probe"
+          fi
+
+          if [ "$probe" -eq 3 ]; then
+            {
+              echo "### Calendar not published"
+              echo
+              echo "There is no config for the current school year, so the only"
+              echo "calendar that can be built has already ended. Publishing it"
+              echo 'would put a stale calendar behind the "current calendar" link.'
+              echo
+              echo 'Add `data/years/<year>.toml` and this year'"'"'s rows in'
+              echo '`data/all_events.csv`. See `data/years/README.md`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Skipped publishing: no config for the current school year."
+            exit 0
+          fi
+
+          NAME="$(basename "$PDF")"
+          ORG="$(python python/build.py --print-organization)"
+          # Escaped for the heredoc below: "Smith & Jones PTSA" would otherwise
+          # write a bare ampersand into the published page. render.py escapes the
+          # same value for the PDF via Jinja autoescape.
+          ORG_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$ORG")"
+          LABEL_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$LABEL")"
+          cp "$PDF" /tmp/calendar.pdf
+          rm -rf dist
+
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # Try to fetch the gh-pages branch, create if it doesn't exist
           git fetch origin gh-pages:refs/remotes/origin/gh-pages || true
-          
-          # Create or checkout gh-pages branch
+
           if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-            git checkout gh-pages
-            git pull origin gh-pages
+            git checkout -B gh-pages origin/gh-pages
           else
             git checkout --orphan gh-pages
-            git rm -rf . || true
-            echo "# Calendar PDFs" > README.md
+            git rm -rqf . || true
           fi
-          
-          # Copy the PDF with a stable name for easy linking
-          cp /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf calendar.pdf
-          cp /tmp/HoraceMann-PTSA-2025-26-Calendar.pdf "calendar-$(date +%Y%m%d).pdf"
-          
-          # Create a simple index.html for web viewing
-          cat > index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
+
+          # gh-pages has no .gitignore of its own, so leftovers from the build
+          # (__pycache__, .pytest_cache) would otherwise be swept up by `add -A`
+          # and published to the public site.
+          git clean -fdxq
+
+          cp /tmp/calendar.pdf calendar.pdf
+          cp /tmp/calendar.pdf "calendar-$(date +%Y%m%d).pdf"
+
+          cat > index.html <<HTML
+          <!doctype html>
+          <html lang="en">
           <head>
-              <title>Horace Mann PTSA Calendar 2025-26</title>
-              <style>
-                  body { font-family: Arial, sans-serif; margin: 40px; }
-                  h1 { color: #C40A0C; }
-                  .download-btn { 
-                      background: #C40A0C; 
-                      color: white; 
-                      padding: 10px 20px; 
-                      text-decoration: none; 
-                      border-radius: 5px; 
-                      display: inline-block;
-                      margin: 10px 0;
-                  }
-              </style>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>$ORG_HTML Calendar $LABEL_HTML</title>
+            <style>
+              body { font-family: system-ui, -apple-system, Arial, sans-serif;
+                     margin: 0 auto; max-width: 60rem; padding: 2rem 1.25rem 4rem;
+                     color: #15181d; background: #fff; }
+              h1 { color: #C40A0C; font-size: 1.6rem; margin: 0 0 .25rem; }
+              p.sub { color: #555d6a; margin: 0 0 1.5rem; }
+              a.btn { background: #C40A0C; color: #fff; padding: .7rem 1.2rem;
+                      text-decoration: none; border-radius: 4px;
+                      display: inline-block; font-weight: 600; }
+              iframe { width: 100%; height: 80vh; margin-top: 1.5rem;
+                       border: 1px solid #e1e5eb; border-radius: 4px; }
+            </style>
           </head>
           <body>
-              <h1>Horace Mann PTSA Calendar 2025-26</h1>
-              <p>Latest version of the calendar:</p>
-              <a href="calendar.pdf" class="download-btn">Download Calendar PDF</a>
-              <br><br>
-              <iframe src="calendar.pdf" width="100%" height="800px"></iframe>
+            <h1>$ORG_HTML Calendar $LABEL_HTML</h1>
+            <p class="sub">Updated $(date +'%B %-d, %Y') &middot; one page, Letter size.</p>
+            <a class="btn" href="calendar.pdf" download="$NAME">Download PDF</a>
+            <iframe src="calendar.pdf" title="Calendar preview"></iframe>
           </body>
           </html>
-          EOF
-          
-          # Commit and push
-          git add .
-          git commit -m "Update calendar PDF from commit ${{ github.sha }}" || echo "No changes to commit"
+          HTML
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+            exit 0
+          fi
+          # Any commit failure past this point is real -- an empty index is the
+          # only benign case and it is handled above. Swallowing it here is how
+          # a failed publish gets a green check.
+          git commit -m "Calendar $LABEL from ${GITHUB_SHA::7}"
           git push origin gh-pages

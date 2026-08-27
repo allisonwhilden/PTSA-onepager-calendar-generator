@@ -2,7 +2,7 @@
 {% block body %}
 <div class="page-wrapper">
   <header class="topbar">
-    <div class="title">Horace Mann <span class="accent">PTSA</span> | 2025-26 Calendar</div>
+    <div class="title">{{ header_lead }}{% if header_accent %} <span class="accent">{{ header_accent }}</span>{% endif %} | {{ year_label }} Calendar</div>
     <div class="logo-area"></div>
   </header>
 
@@ -17,14 +17,19 @@
           </tr>
         </thead>
         <tbody>
-          {% for week in m.cells|batch(7) %}
+          {% for week in m.cells | batch(7) %}
           <tr>
             {% for c in week %}
-              {% if c == "" %}
+              {% if c is none %}
                 <td class="day empty"></td>
               {% else %}
-                <td class="day{% if c.is_weekend %} weekend{% endif %}{% for t in c.marks %} mark-{{ t }}{% endfor %}{% if c.has_diamond %} diamond{% endif %}{% if c.has_circle %} circle{% endif %}">
-                  {% if c.has_diamond or c.has_circle %}<span>{{ c.day }}</span>{% else %}{{ c.day }}{% endif %}{% if c.show_asterisk %}*{% endif %}
+                <td class="day
+                  {%- if c.is_weekend %} weekend{% endif %}
+                  {%- for fill in c.fills %} mark-{{ fill }}{% endfor %}
+                  {%- if c.boxed %} diamond{% endif %}
+                  {%- if c.circled %} circle{% endif %}">
+                  {%- if c.boxed or c.circled %}<span>{{ c.number }}</span>{% else %}{{ c.number }}{% endif %}
+                  {%- if c.has_more %}*{% endif %}
                 </td>
               {% endif %}
             {% endfor %}
@@ -47,25 +52,22 @@
   </section>
 
   <section class="important">
-    {% set half = (important|length + 1) // 2 %}
+    {% set half = (important | length + 1) // 2 %}
     <table class="important-dates-table">
       <tr>
+        {% for column in (important[:half], important[half:]) %}
         <td>
-          {% for e in important[:half] %}
+          {% for e in column %}
             <div class="date-item {% if e.is_ptsa %}ptsa-event{% else %}district-event{% endif %}"><b>{{ e.when }}</b> {{ e.label }}</div>
           {% endfor %}
         </td>
-        <td>
-          {% for e in important[half:] %}
-            <div class="date-item {% if e.is_ptsa %}ptsa-event{% else %}district-event{% endif %}"><b>{{ e.when }}</b> {{ e.label }}</div>
-          {% endfor %}
-        </td>
+        {% endfor %}
       </tr>
     </table>
   </section>
 
   <footer class="page-footer">
-    <span>Updated {{ meta.generated_at }}</span>
+    <span>Updated {{ generated_at }}</span>
     <span class="separator">|</span>
     <span>Calendar subject to change</span>
     <span class="separator">|</span>

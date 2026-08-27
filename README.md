@@ -1,137 +1,191 @@
 # Horace Mann PTSA Calendar Generator
 
-A one-page PDF calendar generator for the 2025-26 school year that combines Lake Washington School District (LWSD) dates with PTSA-specific events. Creates a compact, print-ready Letter-size calendar using Python, Jinja2, and WeasyPrint.
+Turns one CSV of dates into a single-page, print-ready school-year calendar
+combining Lake Washington School District dates with PTSA events.
 
-## Live Calendar
+📅 **[View the current calendar](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/)**
+· 📄 **[Download the PDF](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/calendar.pdf)**
 
-📅 **[View Current Calendar](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/)**  
-📄 **[Direct PDF Download](https://allisonwhilden.github.io/PTSA-onepager-calendar-generator/calendar.pdf)**
+Every push to `main` that touches `data/` or `python/` validates the data, runs
+the tests, rebuilds the PDF and republishes it.
 
-## Features
+---
 
-- **Single-page PDF** optimized for Letter-size printing
-- **Full school year** coverage (September 2025 - August 2026)
-- **Visual event indicators**:
-  - 🟥 Black background = No school days
-  - 🔲 Grey background = Half days  
-  - ⭕ Red circles = PTSA events
-  - ⬜ Square boxes = First/Last days
-  - **Bold** = Early release Wednesdays
-- **Automatic date consolidation** (e.g., "12/22-1/2" for Winter Break)
-- **PTSA branding** with red theme (#C40A0C)
+## The everyday task: change a date
 
-## Quick Start
+1. Edit `data/all_events.csv`.
+2. Check it: `python python/build.py --check --strict`
+3. Run the tests and read the diff: `pytest`
+4. If the change was intended: `UPDATE_GOLDEN=1 pytest python/tests/test_render.py`
+5. Commit and push. The published PDF updates itself.
 
-### 1. Install System Dependencies
+Step 2 validates every row, reports all problems at once with line numbers, and
+confirms the calendar still fits on one page. Use `--strict` — that is what CI
+runs, so a warning that passes here would fail the build.
 
-WeasyPrint requires system-level libraries:
+Step 3 is not optional. The golden snapshot is the only review the printed page
+gets: it shows exactly which cells and which listed dates your edit moved.
+Changing a date **will** fail it, and that is the point — read the diff, then
+re-record with step 4.
 
-**macOS (Homebrew):**
+## Rolling to a new school year
+
+Two files, no code changes. See **[data/years/README.md](data/years/README.md)**.
+
 ```bash
-brew install pygobject3 cairo pango gdk-pixbuf libffi
+cp data/years/2025-26.toml data/years/2026-27.toml   # then edit the dates inside
+# replace the rows in data/all_events.csv
+python python/build.py --check
 ```
 
-**Ubuntu/Debian:**
+`build.py` picks the current school year from today's date, so once the config
+exists it builds automatically from August onward. Until it exists, the build
+still works — it uses the newest year it has and says so — but **publishing is
+skipped**, so an ended school year is never served as the current calendar.
+
+---
+
+## Setup
+
+**Python 3.11 or newer** is required — the year configs are read with `tomllib`,
+which arrived in 3.11.
+
+WeasyPrint needs system libraries before the Python packages will work.
+
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-dev python3-pip libcairo2 libpango-1.0-0 \
+# macOS
+brew install pango gdk-pixbuf libffi
+
+# Debian / Ubuntu
+sudo apt-get install -y python3-dev libcairo2 libpango-1.0-0 \
   libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
 ```
 
-### 2. Setup Python Environment
+Then:
 
 ```bash
-# Create and activate virtual environment (REQUIRED)
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# or
-.venv\Scripts\activate      # Windows
-
-# Install Python dependencies
-pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r python/requirements.txt
 ```
 
-### 3. Edit Event Data
-
-Modify the CSV file in the `data/` directory:
-- `data/all_events.csv` - Combined file with all LWSD district dates and PTSA events (57 total events)
-
-### 4. Generate Calendar
+## Building
 
 ```bash
-# Build the PDF
-python build.py --year 2025 --data data/all_events.csv --out build/HoraceMann-PTSA-2025-26-Calendar.pdf
-
-# Open the result (macOS)
-open build/HoraceMann-PTSA-2025-26-Calendar.pdf
+python python/build.py                  # current school year -> build/
+python python/build.py --year 2025      # a specific year
+python python/build.py --check          # validate, and check the one-page fit
+python python/build.py --check --strict # what CI runs
+python python/build.py --strict         # treat warnings as errors
+python python/build.py --out cal.pdf    # somewhere specific
+python python/build.py --require-current-year   # fail if the year has ended
 ```
 
-## CSV Data Format
+Runs from any directory.
 
-The event file uses this schema:
+## Testing
+
+From the repo root:
+
+```bash
+pytest
+```
+
+102 tests covering type resolution, CSV validation, config validation, grid
+construction, early-release marking, date consolidation and year selection —
+plus a golden snapshot of the rendered page and an assertion that the PDF is
+exactly one Letter page.
+
+The snapshot follows whichever year the repo ships, so rolling to a new year
+fails once with "this year's page has never been reviewed" — look it over, then
+re-record.
+
+The two PDF tests skip where WeasyPrint's system libraries are absent; the
+snapshot and everything else still run.
+
+When you change the page on purpose, re-record the snapshot:
+
+```bash
+UPDATE_GOLDEN=1 pytest python/tests/test_render.py
+```
+
+---
+
+## The data file
 
 ```csv
 date,start_date,end_date,type,label,notes
 2025-09-02,,,first_day,First Day (Grades 1-12),
 ,2025-12-22,2026-01-02,no_school,Winter Break,
-2025-10-10,,,ptsa_event,Picture Day,
+2025-09-30,,,ptsa_event,Picture Day,
 ```
 
-- Use `date` for single-day events OR `start_date`+`end_date` for ranges
-- `type` determines visual styling and event category (no_school, half_day, ptsa_event, first_day, etc.)
-- `label` appears in the Important Dates section
+- Use `date` for a single day, **or** `start_date` + `end_date` for a range.
+- `label` is what prints in the Important Dates list.
+- `notes` is optional and does not print.
+- Repeats of the same label fold into one line: four Board Meeting rows print as
+  `10/23, 2/19, 4/23, 6/4 PTSA: Board Meeting`.
 
-## Customization
+### Event types
 
-### Styling
-Edit `styles/calendar.css` to modify:
-- Colors and themes
-- Font sizes and spacing
-- Page margins (currently 8pt for maximum content)
+| Type | On the calendar | In the dates list |
+|---|---|---|
+| `no_school` | Black cell | ✓ |
+| `half_day` | Grey cell | ✓ |
+| `closure_possible` | Diagonal stripes | ✓ |
+| `early_release` | Bold number | ✓ |
+| `ptsa_event` | Red circle | ✓ prefixed `PTSA:` |
+| `first_day` / `last_day` | *(nothing — see below)* | ✓ |
+| `informational` | *(nothing)* | ✓ |
 
-### Templates
-Modify `templates/calendar.html` to change:
-- Header text and branding
-- Layout structure
-- Legend entries
+Also accepted as spellings of the above: `holiday`, `first_day_k`,
+`first_day_1_12`, `closure_day`, `possible_school_day`, `potential_school_day`,
+`grades_due`, `kinder_family_conn`.
 
-### Event Types
-Add new event types in `build.py`:
-- Update `TYPE_NORMALIZATION` dictionary
-- Add corresponding CSS classes
+A day carrying an event whose type draws nothing — an `informational` date, say —
+gets an asterisk pointing the reader at the dates list. A fill or a circle speaks
+for that event, so those days get no asterisk. The first/last-day box comes from
+the year config rather than from an event, so a boxed day still points at the
+list for the detail.
 
-## Automatic Deployment
+**A type that isn't in this table fails the build**, naming the row. The
+generator never guesses what an unknown type should look like. See
+[DECISIONS.md](DECISIONS.md).
 
-The included GitHub Actions workflow automatically:
-1. Builds the PDF on every push to `main`
-2. Deploys to GitHub Pages for easy sharing
-3. Creates a web viewer with download button
+**Adding a new kind of date** is one line in `python/calendar_gen/event_types.py`
+saying how it's drawn, plus a CSS rule if it needs a new fill.
 
-After pushing changes, your calendar will be available at:
-- `https://[your-username].github.io/[repo-name]/calendar.pdf`
+### Early release and the first/last-day box
 
-## Project Structure
+These two come from `data/years/<year>.toml`, not the CSV:
+
+- **Early-release Wednesdays** are a rule, not data — every Wednesday between
+  `early_release_start` and `last_day` is marked automatically, unless the day is
+  already off or already short.
+- **The first/last-day box** is drawn on the days in `boxed_days` — the days
+  school starts and ends, which here means both first days (grades 1-12 and
+  kindergarten) and the last day. The CSV also uses `first_day`/`last_day` for
+  dates that are not year boundaries (SNAPS, quarter and semester ends); those
+  are listed but not boxed.
+
+---
+
+## Layout
 
 ```
-├── build.py                 # Main generator script
-├── data/
-│   └── all_events.csv      # Combined LWSD district and PTSA events
-├── templates/
-│   ├── base.html           # HTML structure
-│   └── calendar.html       # Calendar layout
-├── styles/
-│   └── calendar.css        # All styling
-└── .github/
-    └── workflows/
-        └── build-and-deploy.yml  # CI/CD automation
+data/
+  all_events.csv          the dates
+  years/2025-26.toml      per-year config (two dates, plus the boxed days)
+python/
+  build.py                CLI
+  calendar_gen/
+    event_types.py        what each type is and how it's drawn
+    events.py             CSV reading and validation
+    school_year.py        year config and year selection
+    layout.py             grid cells and the Important Dates list
+    render.py             HTML, then PDF
+  templates/  styles/     the page itself
+  tests/                  including the golden snapshot
 ```
-
-## Notes
-
-- Early release Wednesdays are automatically marked starting Sept 10, 2025
-- Preschool events have been removed from district data
-- Virtual environment activation is REQUIRED for WeasyPrint to work
-- The calendar fits on a single Letter-size page when printed
 
 ## License
 

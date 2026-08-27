@@ -3,10 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>{{ title }}</title>
+  <!-- Resolved against python/ -- build.py sets base_url to its own directory. -->
   <link rel="stylesheet" href="styles/calendar.css">
-  <style>
-  /* Fallback inline for WeasyPrint path resolution */
-  </style>
 </head>
 <body>
   {% block body %}{% endblock %}
