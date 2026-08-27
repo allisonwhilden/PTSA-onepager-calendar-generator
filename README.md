@@ -72,7 +72,7 @@ pip install -r python/requirements.txt
 
 ```bash
 python python/build.py                  # current school year -> build/
-python python/build.py --year 2025      # a specific year
+python python/build.py --year 2026      # a specific year
 python python/build.py --check          # validate, and check the one-page fit
 python python/build.py --check --strict # what CI runs
 python python/build.py --strict         # treat warnings as errors
@@ -90,7 +90,7 @@ From the repo root:
 pytest
 ```
 
-103 tests covering type resolution, CSV validation, config validation, grid
+104 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.

@@ -1,7 +1,7 @@
 """Build the one-page PTSA calendar PDF.
 
     python python/build.py                     # current school year, default paths
-    python python/build.py --year 2025         # a specific year
+    python python/build.py --year 2026         # a specific year
     python python/build.py --check             # validate the CSV, render nothing
 
 Runs from any working directory.

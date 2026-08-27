@@ -73,10 +73,14 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
 
 No code changes and no workflow changes -- but step 5 is not optional: the
 snapshot is the only review the printed page gets. `build.py` picks the current
-school year by today's date, so once `2026-27.toml` exists it builds automatically from August
-onward. Until then it builds the newest year it has and says so.
+school year by today's date, so the new config takes over automatically from the
+August it starts. Until that August it keeps building the newest year it has and
+says so, and publishing is skipped rather than serving an ended calendar.
 
-To build a specific year regardless of today's date: `--year 2025`.
+To build a specific year regardless of today's date: `--year 2026`.
+Only years whose rows are still in the CSV can be built -- asking for a
+year whose rows have been replaced fails with "the calendar would be
+blank" rather than printing an empty page.
 
 ## Why these two dates and nothing else
 

@@ -141,31 +141,44 @@ html, body {
    A day can be both boxed (year config) and circled (a PTSA event on the first
    day, say). These rules have equal specificity, so the circle would silently
    win and the box would vanish -- .day.diamond.circle span below keeps both. */
+/* The circle has to satisfy two things at once, and both are tested:
+
+   1. It must not make its week row taller than the others. As an inline-block
+      on the baseline a 12pt circle drove its row from 14.7pt to 19.3pt, so
+      weeks with a PTSA event were visibly taller.
+      -> Negative vertical margins: for an inline-block the *margin* box is what
+         the line box measures, so the circle contributes less height than it
+         draws. Guarded by test_every_week_row_is_the_same_height.
+
+   2. It must not spill into the week below. Margins alone fixed the row height
+      but left the circle drawing at 12pt inside a ~11pt row, so 34 of them hung
+      4pt into the next row -- the Nov 12 ring crossed the grid line, and on a
+      black no-school cell it drew right over it.
+      -> 10pt is the largest size that satisfies both: at 10.5pt and above the
+         row grows again. Guarded by test_ptsa_circles_stay_inside_their_row. */
 .day.circle span {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 12pt;
-  height: 12pt;
+  width: 10pt;
+  height: 10pt;
   display: inline-block;
   font-weight: normal;
-  line-height: 10pt;
+  line-height: 8.5pt;
   text-align: center;
   padding: 0;
   font-size: 6pt;
   margin-right: 1pt;
   position: relative;
   top: 0;
-
-  /* The circle is 12pt tall but the week row is only ~14.7pt. As an
-     inline-block sitting on the baseline it used to drive its row to 19.3pt,
-     so weeks containing a PTSA event were visibly taller than weeks without.
-     For an inline-block the *margin* box is what the line box measures, so
-     negative vertical margins let the circle draw at full size while
-     contributing its shrunken height to layout. Every week row is now equal.
-     Guarded by test_every_week_row_is_the_same_height. */
   vertical-align: middle;
-  margin-top: -3pt;
-  margin-bottom: -3pt;
+  margin-top: -1pt;
+  margin-bottom: -1pt;
+}
+
+/* A PTSA event on a no-school day: red on black is barely legible, so the ring
+   goes white. 8/27 (Colt Corral, inside the LEAP Days block) is the live case. */
+.day.mark-no_school.circle span {
+  border-color: #fff;
 }
 
 /* Both marks on one day (a PTSA event on the first day of school). Higher
@@ -254,9 +267,9 @@ html, body {
 .legend-circle {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 12pt;
-  height: 12pt;
-  line-height: 10pt;
+  width: 10pt;      /* matches .day.circle span so the key looks like the grid */
+  height: 10pt;
+  line-height: 8.5pt;
   text-align: center;
   display: inline-block;
   font-weight: normal;

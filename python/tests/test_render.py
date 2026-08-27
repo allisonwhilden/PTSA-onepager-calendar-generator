@@ -110,24 +110,86 @@ def test_every_listed_date_is_inside_the_printed_year(
 
 
 # --- the actual PDF --------------------------------------------------------
-# WeasyPrint needs system libraries, so the two tests below skip where it is
-# absent. The skip lives in the fixture, not at module scope: a module-level
+# WeasyPrint needs system libraries, so everything below skips where it is
+# absent. The skip lives in the fixtures, not at module scope: a module-level
 # importorskip would take the snapshot and the regression guard above down with
 # it, and `UPDATE_GOLDEN=1 pytest python/tests/test_render.py` would silently
 # record nothing.
 
 
-@pytest.fixture(scope="module")
-def built_pdf(tmp_path_factory, rendered_html):
-    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
-    return render.write_pdf(
-        rendered_html, tmp_path_factory.mktemp("pdf") / "calendar.pdf")
+@pytest.fixture(scope="session")
+def laid_out(rendered_html):
+    """The page laid out once, shared by every test that needs geometry.
+
+    Laying the same HTML out per-test cost about a second each.
+    """
+    weasyprint = pytest.importorskip(
+        "weasyprint", reason="WeasyPrint needs system libraries")
+    return weasyprint.HTML(
+        string=rendered_html, base_url=str(render.PYTHON_DIR)).render()
 
 
-def test_calendar_is_exactly_one_page(built_pdf):
+@pytest.fixture(scope="session")
+def built_pdf(tmp_path_factory, laid_out):
+    path = tmp_path_factory.mktemp("pdf") / "calendar.pdf"
+    laid_out.write_pdf(target=str(path))
+    return path
+
+
+def _boxes(page):
+    """Every box on the page, with the chain of ancestors that reached it.
+
+    WeasyPrint boxes carry no parent pointer, so track it on the way down.
+    """
+    def walk(box, chain=()):
+        yield box, chain
+        for child in getattr(box, "all_children", lambda: [])():
+            yield from walk(child, chain + (box,))
+    return walk(page._page_box)
+
+
+def _week_rows(page):
+    """The seven-cell rows of the twelve month grids.
+
+    Seven cells excludes both the "Su Mo Tu..." thead rows and the two-column
+    Important Dates row, which is a tbody tr as well.
+    """
+    rows = []
+    for box, chain in _boxes(page):
+        if getattr(box, "element_tag", None) != "tr":
+            continue
+        if not chain or getattr(chain[-1], "element_tag", None) != "tbody":
+            continue
+        cells = sum(1 for c in box.all_children()
+                    if getattr(c, "element_tag", None) == "td")
+        if cells == 7:
+            rows.append(box)
+    return rows
+
+
+def _ptsa_circles(page):
+    """(circle, enclosing week row) for every PTSA ring drawn in the grid.
+
+    Identified by border-radius: 50%, which nothing else in a day cell uses.
+    The legend circle has it too but sits outside any table row.
+    """
+    out = []
+    for box, chain in _boxes(page):
+        if getattr(box, "element_tag", None) != "span":
+            continue
+        radius = box.style["border_top_left_radius"][0]
+        if not (radius.unit == "%" and radius.value == 50):
+            continue
+        row = next((a for a in reversed(chain)
+                    if getattr(a, "element_tag", None) == "tr"), None)
+        if row is not None:
+            out.append((box, row))
+    return out
+
+
+def test_calendar_is_exactly_one_page(laid_out):
     """The whole point of the product. If this fails, nothing else matters."""
-    pypdf = pytest.importorskip("pypdf")
-    assert len(pypdf.PdfReader(built_pdf).pages) == 1
+    assert len(laid_out.pages) == 1
 
 
 def test_page_is_us_letter(built_pdf):
@@ -149,45 +211,40 @@ def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
     assert render.count_pages(rendered_html) == 1
 
 
-def _week_row_heights(html: str) -> list[float]:
-    """Border heights of every week row in the twelve month grids."""
-    weasyprint = pytest.importorskip(
-        "weasyprint", reason="WeasyPrint needs system libraries")
-    page = weasyprint.HTML(
-        string=html, base_url=str(render.PYTHON_DIR)).render().pages[0]
-
-    # WeasyPrint boxes carry no parent pointer, so track it on the way down --
-    # the "Su Mo Tu..." header rows live in a thead and must not be counted.
-    def walk(box, parent_tag=None):
-        yield box, parent_tag
-        tag = getattr(box, "element_tag", None) or parent_tag
-        for child in getattr(box, "all_children", lambda: [])():
-            yield from walk(child, tag)
-
-    def cell_count(row):
-        return sum(1 for c in row.all_children()
-                   if getattr(c, "element_tag", None) == "td")
-
-    # A week row has seven day cells. That also excludes the Important Dates
-    # table, whose two-column row is a tbody tr as well.
-    return [
-        round(box.border_height(), 2)
-        for box, parent_tag in walk(page._page_box)
-        if getattr(box, "element_tag", None) == "tr"
-        and parent_tag == "tbody" and cell_count(box) == 7
-    ]
-
-
-def test_every_week_row_is_the_same_height(rendered_html):
+def test_every_week_row_is_the_same_height(laid_out):
     """A PTSA circle must not make its week taller than the others.
 
-    The circle is a 12pt inline-block in a ~14.7pt row. Sitting on the baseline
-    it used to push its row to 19.3pt, so 22 of the 72 week rows were visibly
-    taller. Negative vertical margins keep it drawn at full size while shrinking
-    what it contributes to layout.
+    The circle is an inline-block in a ~14.7pt row. Sitting on the baseline at
+    12pt it used to push its row to 19.3pt, so 22 of the 72 week rows were
+    visibly taller. Negative vertical margins shrink what it contributes.
     """
-    heights = _week_row_heights(rendered_html)
+    heights = [round(r.border_height(), 2) for r in _week_rows(laid_out.pages[0])]
     assert len(heights) == 72, f"expected 12 months x 6 rows, got {len(heights)}"
     assert len(set(heights)) == 1, (
-        f"week rows are not a uniform height: {sorted(set(heights))}"
+        f"week rows are not a uniform height: {sorted(set(heights))}")
+
+
+def test_ptsa_circles_stay_inside_their_row(laid_out):
+    """Equal row heights are not enough -- the ring must also stay in its row.
+
+    Shrinking the row without shrinking the circle left 34 rings drawing 4pt
+    into the following week: the Nov 12 ring crossed the grid line, and where
+    the day below was a black no-school cell it drew straight over it. Uniform
+    height alone cannot see that, which is why this test exists beside it.
+    """
+    circles = _ptsa_circles(laid_out.pages[0])
+    assert circles, "no PTSA circles found in the grid"
+
+    spills = []
+    for circle, row in circles:
+        row_top, row_bottom = row.position_y, row.position_y + row.border_height()
+        top, bottom = circle.position_y, circle.position_y + circle.border_height()
+        # 1px of tolerance: the ring may sit on the cell border, not past it.
+        over = max(row_top - top, bottom - row_bottom)
+        if over > 1.0:
+            spills.append(round(over, 2))
+
+    assert not spills, (
+        f"{len(spills)} of {len(circles)} PTSA circles spill out of their week "
+        f"row by up to {max(spills)}px"
     )
