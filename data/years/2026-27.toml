@@ -1,6 +1,14 @@
 # Horace Mann PTSA calendar - 2026-27 school year.
-# District dates verified against the official LWSD one-page calendar
-# ("2026-27 Calendar FINAL", updated 7/2026).
+#
+# District dates verified against the official LWSD one-page calendar,
+# "2026-27 Calendar FINAL", Updated 8/2026:
+#   https://www.lwsd.org/calendar
+#
+# Always start from that page, not from a saved PDF link. The file lives on a
+# version-stamped CDN URL, and LWSD republishes under a NEW url when dates
+# change -- an older copy still says "FINAL" and still says "2026-27", so
+# nothing about it looks stale. Between the 7/2026 and 8/2026 revisions
+# Elementary Grades Due moved from Jan 13 to Jan 20.
 
 [calendar]
 organization = "Horace Mann PTSA"

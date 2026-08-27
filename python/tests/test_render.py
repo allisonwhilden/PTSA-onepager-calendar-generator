@@ -147,3 +147,47 @@ def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
     """`--check` uses this to protect the one-page promise before a push."""
     pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
     assert render.count_pages(rendered_html) == 1
+
+
+def _week_row_heights(html: str) -> list[float]:
+    """Border heights of every week row in the twelve month grids."""
+    weasyprint = pytest.importorskip(
+        "weasyprint", reason="WeasyPrint needs system libraries")
+    page = weasyprint.HTML(
+        string=html, base_url=str(render.PYTHON_DIR)).render().pages[0]
+
+    # WeasyPrint boxes carry no parent pointer, so track it on the way down --
+    # the "Su Mo Tu..." header rows live in a thead and must not be counted.
+    def walk(box, parent_tag=None):
+        yield box, parent_tag
+        tag = getattr(box, "element_tag", None) or parent_tag
+        for child in getattr(box, "all_children", lambda: [])():
+            yield from walk(child, tag)
+
+    def cell_count(row):
+        return sum(1 for c in row.all_children()
+                   if getattr(c, "element_tag", None) == "td")
+
+    # A week row has seven day cells. That also excludes the Important Dates
+    # table, whose two-column row is a tbody tr as well.
+    return [
+        round(box.border_height(), 2)
+        for box, parent_tag in walk(page._page_box)
+        if getattr(box, "element_tag", None) == "tr"
+        and parent_tag == "tbody" and cell_count(box) == 7
+    ]
+
+
+def test_every_week_row_is_the_same_height(rendered_html):
+    """A PTSA circle must not make its week taller than the others.
+
+    The circle is a 12pt inline-block in a ~14.7pt row. Sitting on the baseline
+    it used to push its row to 19.3pt, so 22 of the 72 week rows were visibly
+    taller. Negative vertical margins keep it drawn at full size while shrinking
+    what it contributes to layout.
+    """
+    heights = _week_row_heights(rendered_html)
+    assert len(heights) == 72, f"expected 12 months x 6 rows, got {len(heights)}"
+    assert len(set(heights)) == 1, (
+        f"week rows are not a uniform height: {sorted(set(heights))}"
+    )

@@ -155,6 +155,17 @@ html, body {
   margin-right: 1pt;
   position: relative;
   top: 0;
+
+  /* The circle is 12pt tall but the week row is only ~14.7pt. As an
+     inline-block sitting on the baseline it used to drive its row to 19.3pt,
+     so weeks containing a PTSA event were visibly taller than weeks without.
+     For an inline-block the *margin* box is what the line box measures, so
+     negative vertical margins let the circle draw at full size while
+     contributing its shrunken height to layout. Every week row is now equal.
+     Guarded by test_every_week_row_is_the_same_height. */
+  vertical-align: middle;
+  margin-top: -3pt;
+  margin-bottom: -3pt;
 }
 
 /* Both marks on one day (a PTSA event on the first day of school). Higher

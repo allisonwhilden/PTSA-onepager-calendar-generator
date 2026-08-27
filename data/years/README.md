@@ -2,6 +2,22 @@
 
 One file per school year, named for the year it covers: `2026-27.toml`.
 
+## Where the district dates come from
+
+The **[LWSD calendar page](https://www.lwsd.org/calendar)** — always that page,
+never a saved PDF link.
+
+The one-page PDF sits on a version-stamped CDN URL, and LWSD republishes under a
+*new* URL when dates change. An older copy still reads "FINAL" and still covers
+the right school year, so there is no visible sign it has been superseded. Check
+the "Updated M/YYYY" line in the bottom-right against the copy the calendar page
+links today.
+
+This is not hypothetical: between the 7/2026 and 8/2026 revisions of the 2026-27
+calendar, Elementary Grades Due moved from Jan 13 to Jan 20.
+
+Preschool dates are deliberately left out of this calendar — see commit 64e3061.
+
 ## Rolling to a new year
 
 1. **Copy the newest config.**
