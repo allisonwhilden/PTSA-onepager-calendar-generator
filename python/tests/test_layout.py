@@ -192,3 +192,37 @@ def test_dates_outside_the_printed_year_are_not_expanded(year):
     by_date = layout.events_by_date([long_run], year)
     assert all(year.first_printed_day <= d <= year.last_printed_day
                for d in by_date)
+
+
+def test_the_most_severe_background_wins():
+    """A snow day inside a week of half-day conferences is a closed day.
+
+    Left to CSS this was decided by source order at equal specificity, which
+    printed the closed day as a grey half-day.
+    """
+    date = dt.date(2026, 1, 28)
+    day = layout.build_day(date, [
+        make("Conferences", "half_day", date),
+        make("Snow Day", "no_school", date),
+    ])
+    assert day.fills == ["no_school"]
+
+
+def test_early_release_rides_alongside_a_background():
+    date = dt.date(2026, 5, 6)
+    day = layout.build_day(date, [
+        make("Make-up", "closure_possible", date),
+        make("ER", "early_release", date),
+    ])
+    assert day.fills == ["closure_possible", "early_release"]
+
+
+def test_only_one_background_is_ever_emitted():
+    date = dt.date(2026, 1, 28)
+    day = layout.build_day(date, [
+        make("A", "closure_possible", date),
+        make("B", "half_day", date),
+        make("C", "no_school", date),
+    ])
+    backgrounds = [f for f in day.fills if f in layout.BACKGROUND_SEVERITY]
+    assert backgrounds == ["no_school"]

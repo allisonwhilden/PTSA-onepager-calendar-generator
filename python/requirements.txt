@@ -1,3 +1,4 @@
+# Requires Python 3.11 or newer (tomllib is used to read the year configs).
 weasyprint==61.2
 pydyf==0.10.0
 Jinja2==3.1.4

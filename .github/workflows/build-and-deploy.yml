@@ -103,6 +103,11 @@ jobs:
 
           NAME="$(basename "$PDF")"
           ORG="$(python python/build.py --print-organization)"
+          # Escaped for the heredoc below: "Smith & Jones PTSA" would otherwise
+          # write a bare ampersand into the published page. render.py escapes the
+          # same value for the PDF via Jinja autoescape.
+          ORG_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$ORG")"
+          LABEL_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$LABEL")"
           cp "$PDF" /tmp/calendar.pdf
           rm -rf dist
 
@@ -131,7 +136,7 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>$ORG Calendar $LABEL</title>
+            <title>$ORG_HTML Calendar $LABEL_HTML</title>
             <style>
               body { font-family: system-ui, -apple-system, Arial, sans-serif;
                      margin: 0 auto; max-width: 60rem; padding: 2rem 1.25rem 4rem;
@@ -146,7 +151,7 @@ jobs:
             </style>
           </head>
           <body>
-            <h1>$ORG Calendar $LABEL</h1>
+            <h1>$ORG_HTML Calendar $LABEL_HTML</h1>
             <p class="sub">Updated $(date +'%B %-d, %Y') &middot; one page, Letter size.</p>
             <a class="btn" href="calendar.pdf" download="$NAME">Download PDF</a>
             <iframe src="calendar.pdf" title="Calendar preview"></iframe>

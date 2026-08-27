@@ -263,15 +263,6 @@ html, body {
   break-inside: avoid;
   page-break-inside: avoid;
 }
-.section-title {
-  color: #000;
-  padding: 2pt 0;
-  font-weight: 700;
-  font-size: 7.5pt;
-  margin-bottom: 4pt;
-  border-bottom: 0.5pt solid #ccc;
-}
-
 /* Two-column table layout for Important Dates */
 .important-dates-table {
   width: 100%;

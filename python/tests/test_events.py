@@ -177,3 +177,12 @@ def test_a_trailing_comma_is_not_a_field_split(write_csv):
         HEADER + "2025-10-16,,,ptsa_event,Movie Night,,\n"))
     assert events[0].label == "Movie Night"
     assert warnings == []
+
+
+def test_an_unrecognised_column_is_named(write_csv):
+    """A renamed column would otherwise load as blank, with no message."""
+    with pytest.raises(ev.ValidationError) as caught:
+        ev.load_events(write_csv(
+            "date,start_date,end_date,type,label,Notes\n"
+            "2025-09-02,,,first_day,First Day,\n"))
+    assert "Notes" in str(caught.value)

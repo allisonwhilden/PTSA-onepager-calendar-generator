@@ -19,6 +19,12 @@ CELLS_PER_MONTH = 42  # 6 rows of 7, so every month block is the same height
 #: Auto-applied to in-session Wednesdays; not present in the CSV.
 EARLY_RELEASE = REGISTRY["early_release"]
 
+#: Cell backgrounds, least to most severe. A day can carry several -- a snow day
+#: inside a week of half-day conferences -- and the most severe must win. Left to
+#: CSS this is decided by source order at equal specificity, which silently
+#: printed the closed day as a grey half-day.
+BACKGROUND_SEVERITY = ("closure_possible", "half_day", "no_school")
+
 
 @dataclass
 class Day:
@@ -93,11 +99,16 @@ def build_day(date: dt.date, events: list[Event],
     rather than from any event, so it says a boundary falls here without saying
     which one -- a boxed day still points at the list for the detail.
     """
+    present = {e.type.fill for e in events if e.type.fill}
+
+    # One background, most severe wins; early release is a text weight, not a
+    # background, so it rides alongside.
     fills: list[str] = []
-    for event in events:
-        fill = event.type.fill
-        if fill and fill not in fills:
-            fills.append(fill)
+    backgrounds = [f for f in BACKGROUND_SEVERITY if f in present]
+    if backgrounds:
+        fills.append(backgrounds[-1])
+    if "early_release" in present:
+        fills.append("early_release")
 
     return Day(
         date=date,

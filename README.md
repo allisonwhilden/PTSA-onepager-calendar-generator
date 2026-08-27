@@ -14,12 +14,19 @@ the tests, rebuilds the PDF and republishes it.
 ## The everyday task: change a date
 
 1. Edit `data/all_events.csv`.
-2. Check it: `python python/build.py --check`
-3. Commit and push. The published PDF updates itself.
+2. Check it: `python python/build.py --check --strict`
+3. Run the tests and read the diff: `pytest`
+4. If the change was intended: `UPDATE_GOLDEN=1 pytest python/tests/test_render.py`
+5. Commit and push. The published PDF updates itself.
 
-`--check` validates every row, reports all problems at once with line numbers,
-and confirms the calendar still fits on one page — the one thing CI would
-otherwise catch only after you had pushed.
+Step 2 validates every row, reports all problems at once with line numbers, and
+confirms the calendar still fits on one page. Use `--strict` — that is what CI
+runs, so a warning that passes here would fail the build.
+
+Step 3 is not optional. The golden snapshot is the only review the printed page
+gets: it shows exactly which cells and which listed dates your edit moved.
+Changing a date **will** fail it, and that is the point — read the diff, then
+re-record with step 4.
 
 ## Rolling to a new school year
 
@@ -39,6 +46,9 @@ skipped**, so an ended school year is never served as the current calendar.
 ---
 
 ## Setup
+
+**Python 3.11 or newer** is required — the year configs are read with `tomllib`,
+which arrived in 3.11.
 
 WeasyPrint needs system libraries before the Python packages will work.
 
@@ -64,6 +74,7 @@ pip install -r python/requirements.txt
 python python/build.py                  # current school year -> build/
 python python/build.py --year 2025      # a specific year
 python python/build.py --check          # validate, and check the one-page fit
+python python/build.py --check --strict # what CI runs
 python python/build.py --strict         # treat warnings as errors
 python python/build.py --out cal.pdf    # somewhere specific
 python python/build.py --require-current-year   # fail if the year has ended
@@ -79,7 +90,7 @@ From the repo root:
 pytest
 ```
 
-98 tests covering type resolution, CSV validation, config validation, grid
+102 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and an assertion that the PDF is
 exactly one Letter page.

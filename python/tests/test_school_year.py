@@ -33,6 +33,9 @@ def fake_years(tmp_path):
     """
 
     def _make(*start_years: int):
+        # Clear first: two calls in one test must not see the union of both.
+        for stale in tmp_path.glob("*.toml"):
+            stale.unlink()
         for start in start_years:
             (tmp_path / f"{sy.label_for(start)}.toml").write_text(
                 '[calendar]\norganization = "Test PTSA"\n\n'

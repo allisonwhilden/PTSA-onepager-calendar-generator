@@ -6,6 +6,7 @@ no code changes. See data/years/README.md.
 
 from __future__ import annotations
 
+import calendar
 import datetime as dt
 import tomllib
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ def _is_plain_date(value: object) -> bool:
 
 #: The calendar prints August through July, so the grid is a full 12 months.
 FIRST_MONTH = 8
-WEDNESDAY = 2  # date.weekday(): Monday is 0
+WEDNESDAY = calendar.WEDNESDAY
 
 
 def label_for(start_year: int) -> str:
@@ -169,14 +170,14 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
 
-    calendar = raw.get("calendar", {})
+    cal_table = raw.get("calendar", {})
     dates = raw.get("dates", {})
     problems: list[str] = []
 
     # Written as a scalar rather than a table, these would either explode on
     # .get() or iterate character by character, producing one bogus
     # "unrecognised key" per letter.
-    for name, table in (("calendar", calendar), ("dates", dates)):
+    for name, table in (("calendar", cal_table), ("dates", dates)):
         if not isinstance(table, dict):
             raise ValueError(
                 f"{path}:\n  [{name}] must be a section written as [{name}], "
@@ -192,16 +193,16 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
             f"(expected: {', '.join(sorted(known_keys))})"
         )
     for key in ("organization", "accent"):
-        if key in calendar and not isinstance(calendar[key], str):
+        if key in cal_table and not isinstance(cal_table[key], str):
             problems.append(
-                f"[calendar] {key} must be text in quotes, not {calendar[key]!r}"
+                f"[calendar] {key} must be text in quotes, not {cal_table[key]!r}"
             )
-    if "organization" not in calendar:
+    if not str(cal_table.get("organization", "")).strip():
         problems.append(
-            '[calendar] is missing organization (e.g. "Horace Mann PTSA") -- '
-            "it names the header, the page title and the PDF filename"
+            '[calendar] needs a non-empty organization (e.g. "Horace Mann PTSA") '
+            "-- it names the header, the page title and the PDF filename"
         )
-    for key in sorted(set(calendar) - {"organization", "accent"}):
+    for key in sorted(set(cal_table) - {"organization", "accent"}):
         problems.append(
             f"[calendar] has an unrecognised key {key!r} "
             f"(expected: organization, accent)"
@@ -233,8 +234,8 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
 
     year = SchoolYear(
         start_year=start_year,
-        organization=calendar["organization"],
-        accent=calendar.get("accent", "PTSA"),
+        organization=cal_table["organization"],
+        accent=cal_table.get("accent", "PTSA"),
         early_release_start=dates["early_release_start"],
         last_day=dates["last_day"],
         boxed_days=frozenset(boxed),

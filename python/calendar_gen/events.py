@@ -102,13 +102,21 @@ def load_events(csv_path: str | Path) -> tuple[list[Event], list[Problem]]:
         # header written "date, start_date, ..." reports every column missing.
         if reader.fieldnames:
             reader.fieldnames = [name.strip() for name in reader.fieldnames]
-        missing = [c for c in ("type", "label") if c not in (reader.fieldnames or ())]
-        if missing:
-            raise ValidationError(
-                path,
-                [Problem(1, f"missing required column(s): {', '.join(missing)}",
-                         f"expected header: {','.join(CSV_COLUMNS)}")],
-            )
+        header = list(reader.fieldnames or ())
+        header_problems = [
+            Problem(1, f"missing required column {c!r}",
+                    f"expected header: {','.join(CSV_COLUMNS)}")
+            for c in ("type", "label") if c not in header
+        ]
+        # A renamed or misspelled column would otherwise load as blank, the same
+        # way a typo'd TOML key used to. Name it instead.
+        header_problems += [
+            Problem(1, f"unrecognised column {c!r}",
+                    f"expected header: {','.join(CSV_COLUMNS)}")
+            for c in header if c not in CSV_COLUMNS
+        ]
+        if header_problems:
+            raise ValidationError(path, header_problems)
 
         for raw in reader:
             # reader.line_num counts physical lines, so the number matches what

@@ -63,11 +63,12 @@ def main() -> int:
         "--check", action="store_true",
         help="Validate the CSV and report problems without rendering.",
     )
-    parser.add_argument(
+    show = parser.add_mutually_exclusive_group()
+    show.add_argument(
         "--print-label", action="store_true",
         help="Print the school-year label (e.g. 2025-26) and exit.",
     )
-    parser.add_argument(
+    show.add_argument(
         "--print-organization", action="store_true",
         help="Print the organization name from the year config and exit.",
     )
@@ -145,13 +146,15 @@ def main() -> int:
     # Every row landing outside the span means a blank calendar. Without this
     # the usual half-finished year roll -- new config, last year's CSV -- passes
     # --check --strict and CI goes green on a page with nothing on it.
-    if all_events and not important:
-        print(
-            f"\nerror: none of the {len(all_events)} rows in {args.data.name} "
-            f"fall inside {year.label} ({year.first_printed_day} to "
-            f"{year.last_printed_day}), so the calendar would be blank.",
-            file=sys.stderr,
-        )
+    if not important:
+        if all_events:
+            reason = (f"none of the {len(all_events)} rows in {args.data.name} "
+                      f"fall inside {year.label} ({year.first_printed_day} to "
+                      f"{year.last_printed_day})")
+        else:
+            reason = f"{args.data.name} has no event rows"
+        print(f"\nerror: {reason}, so the calendar would be blank.",
+              file=sys.stderr)
         return 1
 
     html = render.render_html(year, months, important)
@@ -182,7 +185,11 @@ def main() -> int:
         out_path = args.out
     else:
         out_path = (args.out_dir or DEFAULT_OUT_DIR) / filename
-    render.write_pdf(html, out_path)
+    try:
+        render.write_pdf(html, out_path)
+    except render.WeasyPrintUnavailable as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     print(f"Wrote {out_path} - {len(all_events)} events, {len(important)} listed dates")
     return 0

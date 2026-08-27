@@ -46,9 +46,27 @@ def render_html(
     )
 
 
+class WeasyPrintUnavailable(RuntimeError):
+    """WeasyPrint, or the system libraries it needs, are not installed."""
+
+
+def _load_weasyprint():
+    try:
+        from weasyprint import HTML
+    except (ImportError, OSError) as exc:
+        # OSError: the Python package is present but libpango and friends are
+        # not, which raises at import. Both cases get the same clear message
+        # rather than a traceback from inside the library.
+        raise WeasyPrintUnavailable(
+            f"WeasyPrint is unavailable ({exc}). Install its system libraries "
+            f"-- see the Setup section of README.md."
+        ) from exc
+    return HTML
+
+
 def write_pdf(html: str, out_path: Path) -> Path:
     """Render HTML to a PDF at ``out_path``."""
-    from weasyprint import HTML  # slow import, and needs system libraries
+    HTML = _load_weasyprint()
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # base_url resolves the stylesheet link in base.html.
@@ -63,9 +81,7 @@ def count_pages(html: str) -> int | None:
     only in CI where the remedy is far from whoever edited the CSV.
     """
     try:
-        from weasyprint import HTML
-    except (ImportError, OSError):
-        # OSError: the Python package is installed but its system libraries
-        # are not, which raises at import time.
+        HTML = _load_weasyprint()
+    except WeasyPrintUnavailable:
         return None
     return len(HTML(string=html, base_url=str(PYTHON_DIR)).render().pages)

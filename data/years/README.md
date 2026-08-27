@@ -28,7 +28,7 @@ One file per school year, named for the year it covers: `2026-27.toml`.
 4. **Check it before you build:**
 
    ```bash
-   python python/build.py --check
+   python python/build.py --check --strict
    ```
 
    This validates every row and tells you about anything questionable, without
