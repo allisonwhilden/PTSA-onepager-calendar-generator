@@ -141,32 +141,100 @@ html, body {
    A day can be both boxed (year config) and circled (a PTSA event on the first
    day, say). These rules have equal specificity, so the circle would silently
    win and the box would vanish -- .day.diamond.circle span below keeps both. */
+/* The circle has to satisfy two things at once, and both are tested:
+
+   1. It must not make its week row taller than the others. As an inline-block
+      on the baseline a 12pt circle drove its row from 14.7pt to 19.3pt, so
+      weeks with a PTSA event were visibly taller.
+      -> Negative vertical margins: for an inline-block the *margin* box is what
+         the line box measures, so the circle contributes less height than it
+         draws. Guarded by test_every_week_row_is_the_same_height.
+
+   2. It must not spill into the neighbouring week. Margins alone fixed the row
+      height but left the circle drawing at 12pt inside a ~11pt row, so 34 of
+      them hung 4pt into the next row -- the Nov 12 ring crossed the grid line,
+      and on a black no-school cell it drew right over it.
+      -> 10pt is the largest size that satisfies both: at 10.5pt and above the
+         row grows again. Guarded by test_ptsa_circles_stay_inside_their_row.
+
+   Do not add `position: relative; top: ...` here to nudge the ring. A previous
+   attempt did, on a measurement that read WeasyPrint's position_y as the border
+   box. It is the *margin* box, and margin-top is negative here, so the ring was
+   really 0.59px high of its row -- the nudge caused the overhang it was meant
+   to correct. vertical-align: middle already centres it: 0.74px clear above,
+   0.59px below. */
 .day.circle span {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 12pt;
-  height: 12pt;
+  width: 10pt;
+  height: 10pt;
   display: inline-block;
   font-weight: normal;
-  line-height: 10pt;
+  line-height: 8.5pt;
   text-align: center;
   padding: 0;
   font-size: 6pt;
   margin-right: 1pt;
-  position: relative;
-  top: 0;
+  vertical-align: middle;
+  margin-top: -1pt;
+  margin-bottom: -1pt;
 }
 
 /* Both marks on one day (a PTSA event on the first day of school). Higher
    specificity than .day.circle span, so the box is not silently overwritten. */
 .day.diamond.circle span {
-  /* outline-offset is unknown to WeasyPrint 61.2 and silently dropped, so the
-     separation comes from padding on the circle instead. */
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  outline: 0.75pt solid #000;
-  padding: 0.5pt;
   font-weight: bold;
+
+  /* An outline draws *outside* the border box, so this mark is wider than the
+     ring on every side and the plain 10pt circle with a 0.75pt box stood 0.41px
+     proud of the week. Both dimensions are constrained, and they pull opposite
+     ways:
+
+       height -- the row is 14.667px, and ring + outline must fit inside it.
+       width  -- the content box must still hold a bold two-digit date. At 6pt
+                 bold, "31" is 8.9px wide.
+
+     9.5pt of ring plus 2 x 0.5pt of outline is 14.575px of ink, clearing the
+     row by 0.09px, and leaves a 10px content box for those 8.9px of digits.
+
+     Shrinking the ring instead of thinning the box is what went wrong the first
+     time: at 9pt with 0.5pt of padding the content box was 8.0px, so the date
+     overran its own ring on both sides -- an invisible 0.4px row overhang
+     traded for a visible collision. There is no padding now: box-sizing is
+     border-box, so padding only eats the content box. It never separated the
+     border from the outline, which is what the comment here used to claim.
+
+     No day in the shipped CSV is both boxed and circled, so none of this shows
+     on today's page. test_a_day_carrying_every_mark_stays_inside_its_row and
+     test_the_date_fits_inside_every_mark build that day on purpose. */
+  outline: 0.5pt solid #000;
+  width: 9.5pt;
+  height: 9.5pt;
+  line-height: 8pt;
+}
+
+/* Every mark on a no-school cell is drawn white, because the cell is solid
+   black: a red ring is barely legible on it and a black box or outline is not
+   visible at all. 8/27 (Colt Corral, inside the LEAP Days block) is the live
+   case for the ring; the box is latent -- no boxed day is currently no-school,
+   but a year whose first or last day fell inside a closure would print a black
+   box on a black cell while the legend still advertised a First/Last key.
+
+   One rule per mark rather than one per combination: whichever marks a
+   no-school day happens to carry, they all turn white.
+
+   Must sit after .day.diamond.circle span: that rule re-declares the `border`
+   shorthand at equal specificity, so moving these above it would put the black
+   and the red back. Guarded by test_marks_on_a_no_school_cell_are_visible. */
+.day.mark-no_school.circle span,
+.day.mark-no_school.diamond span {
+  border-color: #fff;
+}
+
+.day.mark-no_school.diamond.circle span {
+  outline-color: #fff;
 }
 
 /* PTSA event on early release day - keep bold */
@@ -243,9 +311,9 @@ html, body {
 .legend-circle {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  width: 12pt;
-  height: 12pt;
-  line-height: 10pt;
+  width: 10pt;      /* matches .day.circle span so the key looks like the grid */
+  height: 10pt;
+  line-height: 8.5pt;
   text-align: center;
   display: inline-block;
   font-weight: normal;

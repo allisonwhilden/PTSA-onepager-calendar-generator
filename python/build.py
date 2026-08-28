@@ -1,7 +1,7 @@
 """Build the one-page PTSA calendar PDF.
 
     python python/build.py                     # current school year, default paths
-    python python/build.py --year 2025         # a specific year
+    python python/build.py --year 2026         # a specific year
     python python/build.py --check             # validate the CSV, render nothing
 
 Runs from any working directory.
@@ -39,7 +39,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--year", type=int, default=None,
-        help="School year to build, as its starting year (2025 means 2025-26). "
+        help="School year to build, as its starting year (2026 means 2026-27). "
              "Defaults to the current school year.",
     )
     parser.add_argument(
@@ -66,7 +66,7 @@ def main() -> int:
     show = parser.add_mutually_exclusive_group()
     show.add_argument(
         "--print-label", action="store_true",
-        help="Print the school-year label (e.g. 2025-26) and exit.",
+        help="Print the school-year label (e.g. 2026-27) and exit.",
     )
     show.add_argument(
         "--print-organization", action="store_true",

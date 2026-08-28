@@ -33,7 +33,7 @@ re-record with step 4.
 Two files, no code changes. See **[data/years/README.md](data/years/README.md)**.
 
 ```bash
-cp data/years/2025-26.toml data/years/2026-27.toml   # then edit the dates inside
+cp data/years/2026-27.toml data/years/2027-28.toml   # then edit the dates inside
 # replace the rows in data/all_events.csv
 python python/build.py --check
 ```
@@ -72,7 +72,7 @@ pip install -r python/requirements.txt
 
 ```bash
 python python/build.py                  # current school year -> build/
-python python/build.py --year 2025      # a specific year
+python python/build.py --year 2026      # a specific year
 python python/build.py --check          # validate, and check the one-page fit
 python python/build.py --check --strict # what CI runs
 python python/build.py --strict         # treat warnings as errors
@@ -90,17 +90,20 @@ From the repo root:
 pytest
 ```
 
-102 tests covering type resolution, CSV validation, config validation, grid
+107 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
-plus a golden snapshot of the rendered page and an assertion that the PDF is
-exactly one Letter page.
+plus a golden snapshot of the rendered page and of the stylesheet that paints
+it, geometry checks that every week row is the same height and that no mark
+spills into the next week, and an assertion that the built PDF is exactly one
+Letter page.
 
 The snapshot follows whichever year the repo ships, so rolling to a new year
 fails once with "this year's page has never been reviewed" — look it over, then
 re-record.
 
-The two PDF tests skip where WeasyPrint's system libraries are absent; the
-snapshot and everything else still run.
+The eight tests that lay the page out skip where WeasyPrint is unusable --
+whether it is not installed or its system libraries are missing; the snapshot
+and everything else still run.
 
 When you change the page on purpose, re-record the snapshot:
 
@@ -114,16 +117,17 @@ UPDATE_GOLDEN=1 pytest python/tests/test_render.py
 
 ```csv
 date,start_date,end_date,type,label,notes
-2025-09-02,,,first_day,First Day (Grades 1-12),
-,2025-12-22,2026-01-02,no_school,Winter Break,
-2025-09-30,,,ptsa_event,Picture Day,
+2026-08-31,,,first_day,First Day (Grades 1-12),
+,2026-12-21,2027-01-01,no_school,Winter Break,
+2026-09-17,,,ptsa_event,Picture Day,
 ```
 
 - Use `date` for a single day, **or** `start_date` + `end_date` for a range.
 - `label` is what prints in the Important Dates list.
 - `notes` is optional and does not print.
-- Repeats of the same label fold into one line: four Board Meeting rows print as
-  `10/23, 2/19, 4/23, 6/4 PTSA: Board Meeting`.
+- Repeats of the same label fold into one line: the four Board Meeting rows in
+  the shipped CSV print as
+  `12/10, 2/18, 4/22, 6/3 PTSA: Board Meeting 6-7:30pm`.
 
 ### Event types
 
@@ -174,7 +178,7 @@ These two come from `data/years/<year>.toml`, not the CSV:
 ```
 data/
   all_events.csv          the dates
-  years/2025-26.toml      per-year config (two dates, plus the boxed days)
+  years/2026-27.toml      per-year config (two dates, plus the boxed days)
 python/
   build.py                CLI
   calendar_gen/

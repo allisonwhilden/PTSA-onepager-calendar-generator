@@ -1,6 +1,8 @@
 """Year selection and config loading -- the part that makes rolling years cheap."""
 
 import datetime as dt
+import tomllib
+from pathlib import Path
 
 import pytest
 
@@ -83,10 +85,33 @@ def test_asking_for_a_year_with_no_config_is_an_error(fake_years):
 
 
 def test_shipped_config_loads(years_dir):
-    year = sy.load(years_dir, 2025)
-    assert year.label == "2025-26"
+    """Resolved, not pinned: hardcoding a year here would mean deleting a
+    retired config turns pytest red, and a year roll is meant to need no Python
+    changes at all.
+
+    Asserted against the file on disk rather than against the object's own
+    derived fields. `year.label` is `label_for(start_year)` and `load()` is
+    handed that same start_year, so comparing the two holds however `load()`
+    behaved -- it would pass even if config_path() opened the wrong year's TOML.
+    The two dates below exist only in the file, so they pin down which file was
+    read.
+    """
+    start_year, _ = sy.resolve_start_year(years_dir)
+    year = sy.load(years_dir, start_year)
     assert year.organization == "Horace Mann PTSA"
-    assert year.early_release_start == dt.date(2025, 9, 10)
+    assert year.early_release_start.weekday() == sy.WEDNESDAY
+
+    # Located by listing the directory, not by calling config_path -- resolving
+    # the file the same way load() does would compare load()'s output against
+    # the file load() chose, so a config_path pointing at the wrong year would
+    # still pass. path.name == label_for(start_year) + ".toml" was worse still:
+    # that is config_path's definition restated, an assertion that cannot fail.
+    matches = [p for p in Path(years_dir).glob("*.toml")
+               if p.stem == sy.label_for(start_year)]
+    assert len(matches) == 1, f"expected one config for {start_year}, got {matches}"
+    on_disk = tomllib.loads(matches[0].read_text(encoding="utf-8"))["dates"]
+    assert year.early_release_start == on_disk["early_release_start"]
+    assert year.last_day == on_disk["last_day"]
 
 
 def test_printed_span_is_a_full_twelve_months(year):
@@ -185,7 +210,8 @@ def test_header_splits_without_mangling_the_name(org, expected):
 
 
 def test_shipped_config_still_accents_ptsa(years_dir):
-    assert sy.load(years_dir, 2025).header_parts == ("Horace Mann", "PTSA")
+    start_year, _ = sy.resolve_start_year(years_dir)
+    assert sy.load(years_dir, start_year).header_parts == ("Horace Mann", "PTSA")
 
 
 def test_a_date_time_is_rejected_rather_than_crashing_later(tmp_path):
