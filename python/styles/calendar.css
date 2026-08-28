@@ -150,12 +150,19 @@ html, body {
          the line box measures, so the circle contributes less height than it
          draws. Guarded by test_every_week_row_is_the_same_height.
 
-   2. It must not spill into the week below. Margins alone fixed the row height
-      but left the circle drawing at 12pt inside a ~11pt row, so 34 of them hung
-      4pt into the next row -- the Nov 12 ring crossed the grid line, and on a
-      black no-school cell it drew right over it.
+   2. It must not spill into the neighbouring week. Margins alone fixed the row
+      height but left the circle drawing at 12pt inside a ~11pt row, so 34 of
+      them hung 4pt into the next row -- the Nov 12 ring crossed the grid line,
+      and on a black no-school cell it drew right over it.
       -> 10pt is the largest size that satisfies both: at 10.5pt and above the
-         row grows again. Guarded by test_ptsa_circles_stay_inside_their_row. */
+         row grows again. Guarded by test_ptsa_circles_stay_inside_their_row.
+
+   Do not add `position: relative; top: ...` here to nudge the ring. A previous
+   attempt did, on a measurement that read WeasyPrint's position_y as the border
+   box. It is the *margin* box, and margin-top is negative here, so the ring was
+   really 0.59px high of its row -- the nudge caused the overhang it was meant
+   to correct. vertical-align: middle already centres it: 0.74px clear above,
+   0.59px below. */
 .day.circle span {
   border: 1pt solid #C40A0C;
   border-radius: 50%;
@@ -171,13 +178,6 @@ html, body {
   vertical-align: middle;
   margin-top: -1pt;
   margin-bottom: -1pt;
-
-  /* vertical-align: middle centres the *margin* box on the parent's baseline
-     plus half its x-height, not on the cell, which left the ring sitting ~1pt
-     low -- 0.74px of it below the row. This recentres it without touching
-     layout, since the box is relatively positioned. */
-  position: relative;
-  top: -1pt;
 }
 
 /* Both marks on one day (a PTSA event on the first day of school). Higher
@@ -187,16 +187,29 @@ html, body {
      separation comes from padding on the circle instead. */
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  outline: 0.75pt solid #000;
   padding: 0.5pt;
   font-weight: bold;
+
+  /* An outline draws *outside* the border box, so this mark is wider than the
+     ring on every side and the plain 10pt circle with a 0.75pt box no longer
+     fits the row -- it stood 0.41px proud of the week. Sized so box and ring
+     together clear it: 9pt of ring plus 2 x 0.5pt of outline leaves 0.26px.
+     Shrinking the ring further (8pt keeps the 0.75pt box) clears by about as
+     much but squeezes the date inside it, so the box thins instead.
+     No day in the shipped CSV is both boxed and circled, so this changes
+     nothing on today's page -- it keeps the mark inside its week the day one
+     is, which is what test_ptsa_circles_stay_inside_their_row measures. */
+  outline: 0.5pt solid #000;
+  width: 9pt;
+  height: 9pt;
+  line-height: 7.5pt;
 }
 
 /* A PTSA event on a no-school day: red on black is barely legible, so the ring
    goes white. 8/27 (Colt Corral, inside the LEAP Days block) is the live case.
-   Must sit after .day.diamond.circle span, which re-declares the `border`
-   shorthand at equal specificity and would otherwise put the red back. Uses the
-   border-color longhand so it survives either ordering. */
+   Must sit after .day.diamond.circle span: that rule re-declares the `border`
+   shorthand at equal specificity, so on a day that is boxed, circled and
+   no-school, moving this rule above it would put the red back. */
 .day.mark-no_school.circle span {
   border-color: #fff;
 }

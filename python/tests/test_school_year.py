@@ -1,6 +1,7 @@
 """Year selection and config loading -- the part that makes rolling years cheap."""
 
 import datetime as dt
+import tomllib
 
 import pytest
 
@@ -85,13 +86,25 @@ def test_asking_for_a_year_with_no_config_is_an_error(fake_years):
 def test_shipped_config_loads(years_dir):
     """Resolved, not pinned: hardcoding a year here would mean deleting a
     retired config turns pytest red, and a year roll is meant to need no Python
-    changes at all."""
+    changes at all.
+
+    Asserted against the file on disk rather than against the object's own
+    derived fields. `year.label` is `label_for(start_year)` and `load()` is
+    handed that same start_year, so comparing the two holds however `load()`
+    behaved -- it would pass even if config_path() opened the wrong year's TOML.
+    The two dates below exist only in the file, so they pin down which file was
+    read.
+    """
     start_year, _ = sy.resolve_start_year(years_dir)
     year = sy.load(years_dir, start_year)
-    assert year.label == sy.label_for(start_year)
     assert year.organization == "Horace Mann PTSA"
     assert year.early_release_start.weekday() == sy.WEDNESDAY
-    assert year.first_printed_day <= year.early_release_start <= year.last_day
+
+    path = sy.config_path(years_dir, start_year)
+    assert path.name == f"{sy.label_for(start_year)}.toml"
+    on_disk = tomllib.loads(path.read_text(encoding="utf-8"))["dates"]
+    assert year.early_release_start == on_disk["early_release_start"]
+    assert year.last_day == on_disk["last_day"]
 
 
 def test_printed_span_is_a_full_twelve_months(year):

@@ -9,6 +9,7 @@ hardcodes the year turns that roll red, and -- worse -- would keep asserting
 import datetime as dt
 import difflib
 import os
+import re
 
 import pytest
 
@@ -43,22 +44,39 @@ def rendered_html(shipped_year, shipped_events):
     )
 
 
-STYLESHEET_MARKER = "\n\n<!-- ===== python/styles/calendar.css ===== -->\n"
+STYLESHEET_HREF = re.compile(
+    r"""<link[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["']""")
+
+
+def linked_stylesheets(html: str) -> list[str]:
+    """The hrefs base.html actually links, in document order.
+
+    Read out of the rendered page rather than hardcoded, so a stylesheet added
+    to the template is snapshotted the moment it is linked. Hardcoding
+    styles/calendar.css would leave a second sheet -- this repo has carried
+    calendar-backup.css before -- free to repaint the page unreviewed.
+    """
+    return STYLESHEET_HREF.findall(html)
 
 
 @pytest.fixture(scope="session")
 def snapshot_text(rendered_html):
-    """What the snapshot records: the page *and* the stylesheet that paints it.
+    """What the snapshot records: the page *and* the stylesheets that paint it.
 
-    base.html links the stylesheet rather than inlining it, so an HTML-only
+    base.html links its stylesheet rather than inlining it, so an HTML-only
     snapshot saw none of the appearance. Changing the no-school fill from black
     to white left every test green and the snapshot byte-identical, while the
     printed page lost all its no-school days. CLAUDE.md promises the snapshot is
     the only review the printed page gets; recording the CSS beside the HTML is
     what makes that true.
     """
-    css = (render.PYTHON_DIR / "styles" / "calendar.css").read_text(encoding="utf-8")
-    return rendered_html + STYLESHEET_MARKER + css
+    hrefs = linked_stylesheets(rendered_html)
+    assert hrefs, "the page links no stylesheet -- it would print unstyled"
+    parts = [rendered_html]
+    for href in hrefs:
+        css = (render.PYTHON_DIR / href).read_text(encoding="utf-8")
+        parts.append(f"\n\n<!-- ===== python/{href} ===== -->\n{css}")
+    return "".join(parts)
 
 
 def test_page_and_stylesheet_match_the_snapshot(snapshot_text, shipped_year, request):
@@ -68,11 +86,10 @@ def test_page_and_stylesheet_match_the_snapshot(snapshot_text, shipped_year, req
     """
     golden = (request.path.parent / "golden"
               / f"calendar-{shipped_year.label}.html")
-    rendered_html = snapshot_text
 
     if os.environ.get("UPDATE_GOLDEN"):
         golden.parent.mkdir(exist_ok=True)
-        golden.write_text(rendered_html, encoding="utf-8")
+        golden.write_text(snapshot_text, encoding="utf-8")
         pytest.skip(f"recorded {golden.name}")
 
     assert golden.exists(), (
@@ -82,9 +99,9 @@ def test_page_and_stylesheet_match_the_snapshot(snapshot_text, shipped_year, req
     )
     expected = golden.read_text(encoding="utf-8")
 
-    if rendered_html != expected:
+    if snapshot_text != expected:
         diff = "\n".join(difflib.unified_diff(
-            expected.splitlines(), rendered_html.splitlines(),
+            expected.splitlines(), snapshot_text.splitlines(),
             "snapshot", "current", lineterm="", n=2))
         pytest.fail("Rendered page changed:\n\n" + diff[:4000])
 
@@ -260,6 +277,13 @@ def test_ptsa_circles_stay_inside_their_row(laid_out):
     into the following week: the Nov 12 ring crossed the grid line, and where
     the day below was a black no-school cell it drew straight over it. Uniform
     height alone cannot see that, which is why this test exists beside it.
+
+    Measured from border_box_y(), not position_y. position_y is the *margin*
+    box, and .day.circle span carries a negative margin-top; adding a border
+    height to a margin-box origin under-reports the top overhang by exactly that
+    margin. The first version of this test did that, so it passed while all 34
+    rings sat 0.59px above their row -- it reported "inside" for the defect it
+    existed to catch, and failed once the CSS was actually correct.
     """
     circles = _ptsa_circles(laid_out.pages[0])
     assert circles, "no PTSA circles found in the grid"
@@ -267,11 +291,15 @@ def test_ptsa_circles_stay_inside_their_row(laid_out):
     spills = []
     for circle, row in circles:
         row_top, row_bottom = row.position_y, row.position_y + row.border_height()
-        top, bottom = circle.position_y, circle.position_y + circle.border_height()
-        # The ring now clears its row on both sides (~0.6px), so the tolerance
-        # is only float noise -- not headroom for a partial fix.
+        # Ink, not layout: an outline draws outside the border box and is the
+        # widest mark the stylesheet puts in a cell (.day.diamond.circle span).
+        outline = circle.style["outline_width"]
+        top = circle.border_box_y() - outline
+        bottom = circle.border_box_y() + circle.border_height() + outline
+        # Every mark now clears its row on both sides, so the tolerance is only
+        # float noise -- not headroom for a partial fix.
         over = max(row_top - top, bottom - row_bottom)
-        if over > 0.25:
+        if over > 0.05:
             spills.append(round(over, 2))
 
     assert not spills, (
