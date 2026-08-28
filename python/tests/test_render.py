@@ -45,7 +45,7 @@ def rendered_html(shipped_year, shipped_events):
 
 
 LINK_TAG = re.compile(r"<link\b[^>]*>")
-ATTR = re.compile(r"""\b(\w+)=["']([^"']*)["']""")
+ATTR = re.compile(r"""\b(\w+)=(?:["']([^"']*)["']|([^\s>]+))""")
 
 
 def linked_stylesheets(html: str) -> list[str]:
@@ -56,15 +56,18 @@ def linked_stylesheets(html: str) -> list[str]:
     styles/calendar.css would leave a second sheet -- this repo has carried
     calendar-backup.css before -- free to repaint the page unreviewed.
 
-    Attributes are parsed per tag rather than matched in a fixed order. A
-    pattern requiring rel= before href= silently skips `<link href=".."
-    rel="stylesheet">`, which is an ordinary way to write the tag -- and skipping
-    it is exactly the blind spot this function exists to close, made worse by
-    being invisible: the sheet just never reaches the snapshot.
+    Attributes are parsed per tag, in any order, quoted or not. A pattern
+    requiring rel= before href= silently skips `<link href=".." rel="stylesheet">`
+    and one requiring quotes skips `<link rel=stylesheet href=..>`; both are
+    ordinary ways to write the tag, and skipping either is exactly the blind
+    spot this function exists to close, made worse by being invisible -- the
+    sheet just never reaches the snapshot, and `assert hrefs` still passes on
+    whichever sheet was found first.
     """
     out = []
     for tag in LINK_TAG.findall(html):
-        attrs = dict(ATTR.findall(tag))
+        attrs = {name: quoted or bare
+                 for name, quoted, bare in ATTR.findall(tag)}
         if attrs.get("rel", "").lower() == "stylesheet" and attrs.get("href"):
             out.append(attrs["href"])
     return out
@@ -164,6 +167,25 @@ def test_every_listed_date_is_inside_the_printed_year(
 # record nothing.
 
 
+def _require_weasyprint():
+    """Skip unless WeasyPrint can actually be used.
+
+    Deliberately not pytest.importorskip: that catches ImportError only, and the
+    failure this suite promises to skip on -- the Python package installed but
+    libpango and friends absent -- raises OSError at import. With importorskip
+    those tests failed with a traceback from inside the library on exactly the
+    machine the README tells contributors they will skip on.
+
+    render._load_weasyprint already collapses both cases into one clear error,
+    and it is the path the real build takes, so going through it keeps the two
+    in step.
+    """
+    try:
+        render._load_weasyprint()
+    except render.WeasyPrintUnavailable as exc:
+        pytest.skip(str(exc))
+
+
 @pytest.fixture(scope="session")
 def laid_out(rendered_html):
     """The page laid out once, shared by every test that needs geometry.
@@ -171,7 +193,7 @@ def laid_out(rendered_html):
     Goes through render.layout_pages rather than calling WeasyPrint directly, so
     these tests exercise the same base_url wiring the real build depends on.
     """
-    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    _require_weasyprint()
     return render.layout_pages(rendered_html)
 
 
@@ -183,7 +205,7 @@ def built_pdf(tmp_path_factory, rendered_html):
     so dropping its base_url or its mkdir left the suite green while
     `python python/build.py` wrote an unstyled PDF or crashed.
     """
-    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    _require_weasyprint()
     return render.write_pdf(rendered_html,
                             tmp_path_factory.mktemp("pdf") / "calendar.pdf")
 
@@ -203,6 +225,13 @@ def _boxes(page):
         for child in getattr(box, "all_children", lambda: [])():
             yield from walk(child, chain + (box,))
     return walk(root)
+
+
+def _boxes_of(box, chain=()):
+    """Every box under `box`, with the ancestors that reached it."""
+    yield box, chain
+    for child in getattr(box, "all_children", lambda: [])():
+        yield from _boxes_of(child, chain + (box,))
 
 
 def _week_rows(page):
@@ -244,6 +273,31 @@ def _ptsa_circles(page):
     return out
 
 
+def _spills(circles, tolerance: float = 0.05) -> list[float]:
+    """How far each mark is drawn outside its week row, where that is at all.
+
+    Measured as ink, not layout: from border_box_y() (position_y is the *margin*
+    box, and these marks carry a negative margin-top -- mixing the two is how a
+    guard once certified 34 rings as inside their row while every one of them
+    sat 0.59px above it) and widened by outline_width, since an outline draws
+    outside the border box and .day.diamond.circle span has one.
+
+    One implementation, two callers: this measurement has been wrong once
+    already, and it should not be possible to fix it in one test and not the
+    other. The tolerance is float noise, not headroom for a partial fix.
+    """
+    out = []
+    for circle, row in circles:
+        row_top, row_bottom = row.position_y, row.position_y + row.border_height()
+        outline = circle.style["outline_width"]
+        top = circle.border_box_y() - outline
+        bottom = circle.border_box_y() + circle.border_height() + outline
+        over = max(row_top - top, bottom - row_bottom)
+        if over > tolerance:
+            out.append(round(over, 2))
+    return out
+
+
 def test_calendar_is_exactly_one_page(built_pdf):
     """The whole point of the product. If this fails, nothing else matters.
 
@@ -273,7 +327,7 @@ def test_the_page_is_not_empty(rendered_html, shipped_events):
 
 def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
     """`--check` uses this to protect the one-page promise before a push."""
-    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    _require_weasyprint()
     assert render.count_pages(rendered_html) == 1
 
 
@@ -288,8 +342,11 @@ def stress_page():
     lands on a PTSA event or inside a closure, which is precisely the year
     nobody will be reading the CSS, so this builds that day on purpose.
     """
-    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
-    marked = dt.date(2026, 9, 8)
+    _require_weasyprint()
+    # Two digits on purpose: a bold "31" is 8.9px wide, and it was a
+    # single-digit stress day that let a mark ship whose content box was 8.0px.
+    # 8/31 is also a real boxed day in the shipped config.
+    marked = dt.date(2026, 8, 31)
     year = school_year.SchoolYear(
         start_year=2026,
         organization="Horace Mann PTSA",
@@ -311,12 +368,21 @@ def stress_page():
 
 
 def _marked_span(page):
-    """The span on the stress page's every-mark day, with its cell."""
+    """The span on the stress page's every-mark day, with the cell it sits in.
+
+    The cell is the *outermost* td-tagged ancestor. WeasyPrint wraps cell
+    content in anonymous LineBox and TextBox boxes that report element_tag "td"
+    as well but paint nothing, and those are the innermost ones: taking the last
+    td in the chain returns a LineBox whose background is transparent black.
+    Read that way, this test's "is the cell really black?" precondition passed
+    on rgba(0, 0, 0, 0) no matter what the stylesheet said.
+    """
     for box, chain in _boxes(page):
         if getattr(box, "element_tag", None) != "span":
             continue
-        cell = next((a for a in reversed(chain)
-                     if getattr(a, "element_tag", None) == "td"), None)
+        cell = next((a for a in chain
+                     if getattr(a, "element_tag", None) == "td"
+                     and getattr(a, "background", None) is not None), None)
         if cell is None:
             continue
         classes = set(cell.element.get("class", "").split())
@@ -335,20 +401,34 @@ def test_a_day_carrying_every_mark_stays_inside_its_row(stress_page):
     outlined = [(c, r) for c, r in circles if c.style["outline_width"]]
     assert outlined, "the stress page drew no outlined mark"
 
-    spills = []
-    for circle, row in outlined:
-        row_top, row_bottom = row.position_y, row.position_y + row.border_height()
-        outline = circle.style["outline_width"]
-        top = circle.border_box_y() - outline
-        bottom = circle.border_box_y() + circle.border_height() + outline
-        over = max(row_top - top, bottom - row_bottom)
-        if over > 0.05:
-            spills.append(round(over, 2))
-
+    spills = _spills(outlined)
     assert not spills, (
         f"{len(spills)} of {len(outlined)} boxed-and-circled marks spill out of "
         f"their week row by up to {max(spills)}px"
     )
+
+
+def test_the_date_fits_inside_every_mark(stress_page, laid_out):
+    """A mark sized to fit its row must still hold the date it encircles.
+
+    Shrinking the boxed-and-circled mark to clear the week row left an 8.0px
+    content box around a bold two-digit date 8.9px wide, so "31" overran its own
+    ring on both sides. The row-fit guard could not see it -- overflowing text
+    does not change the box -- and the stress day was single-digit, so nothing
+    rendered a case where it showed.
+    """
+    for page, what in ((stress_page.pages[0], "stress"), (laid_out.pages[0], "shipped")):
+        marks = [c for c, _ in _ptsa_circles(page)]
+        assert marks, f"no marks found on the {what} page"
+        for mark in marks:
+            for box, _ in _boxes_of(mark):
+                text = getattr(box, "text", None)
+                if not text:
+                    continue
+                assert box.width <= mark.width, (
+                    f"{text!r} is {box.width:.2f}px wide in a {mark.width:.2f}px "
+                    f"mark on the {what} page, so it overruns its own ring"
+                )
 
 
 def test_marks_on_a_no_school_cell_are_visible(stress_page):
@@ -360,19 +440,32 @@ def test_marks_on_a_no_school_cell_are_visible(stress_page):
     """
     span, cell = _marked_span(stress_page.pages[0])
 
-    def luminance(rgba):
-        return 0.2126 * rgba[0] + 0.7152 * rgba[1] + 0.0722 * rgba[2]
+    def over(rgba, backdrop):
+        """`rgba` composited onto `backdrop`, as (r, g, b).
 
-    assert luminance(cell.style["background_color"]) < 0.2, (
-        "expected a black no-school cell to test against")
+        Alpha is not optional here. Reading the raw channels and ignoring it
+        scores rgba(0, 0, 0, 0.12) -- a near-white cell -- as pure black, which
+        would satisfy the precondition below and then certify a white-on-white
+        ring as visible. It scores rgba(255, 255, 255, 0.05) as pure white too.
+        """
+        r, g, b, a = rgba
+        return tuple(a * c + (1 - a) * back for c, back in zip((r, g, b), backdrop))
+
+    def luminance(rgb):
+        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+    paper = (1.0, 1.0, 1.0)
+    cell_rgb = over(cell.style["background_color"], paper)
+    assert luminance(cell_rgb) < 0.2, (
+        f"expected a black no-school cell to test against, got {cell_rgb}")
 
     marks = {"border": span.style["border_top_color"]}
     if span.style["outline_width"]:
         marks["outline"] = span.style["outline_color"]
 
-    invisible = {name: tuple(round(c, 2) for c in colour)
+    invisible = {name: tuple(round(c, 2) for c in over(colour, cell_rgb))
                  for name, colour in marks.items()
-                 if luminance(colour) < 0.5}
+                 if luminance(over(colour, cell_rgb)) < 0.5}
     assert not invisible, (
         f"drawn dark on a black no-school cell, so invisible: {invisible}")
 
@@ -407,21 +500,7 @@ def test_ptsa_circles_stay_inside_their_row(laid_out):
     """
     circles = _ptsa_circles(laid_out.pages[0])
     assert circles, "no PTSA circles found in the grid"
-
-    spills = []
-    for circle, row in circles:
-        row_top, row_bottom = row.position_y, row.position_y + row.border_height()
-        # Ink, not layout: an outline draws outside the border box and is the
-        # widest mark the stylesheet puts in a cell (.day.diamond.circle span).
-        outline = circle.style["outline_width"]
-        top = circle.border_box_y() - outline
-        bottom = circle.border_box_y() + circle.border_height() + outline
-        # Every mark now clears its row on both sides, so the tolerance is only
-        # float noise -- not headroom for a partial fix.
-        over = max(row_top - top, bottom - row_bottom)
-        if over > 0.05:
-            spills.append(round(over, 2))
-
+    spills = _spills(circles)
     assert not spills, (
         f"{len(spills)} of {len(circles)} PTSA circles spill out of their week "
         f"row by up to {max(spills)}px"

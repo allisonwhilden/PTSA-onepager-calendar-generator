@@ -183,26 +183,36 @@ html, body {
 /* Both marks on one day (a PTSA event on the first day of school). Higher
    specificity than .day.circle span, so the box is not silently overwritten. */
 .day.diamond.circle span {
-  /* outline-offset is unknown to WeasyPrint 61.2 and silently dropped, so the
-     separation comes from padding on the circle instead. */
   border: 1pt solid #C40A0C;
   border-radius: 50%;
-  padding: 0.5pt;
   font-weight: bold;
 
   /* An outline draws *outside* the border box, so this mark is wider than the
-     ring on every side and the plain 10pt circle with a 0.75pt box no longer
-     fits the row -- it stood 0.41px proud of the week. Sized so box and ring
-     together clear it: 9pt of ring plus 2 x 0.5pt of outline leaves 0.26px.
-     Shrinking the ring further (8pt keeps the 0.75pt box) clears by about as
-     much but squeezes the date inside it, so the box thins instead.
-     No day in the shipped CSV is both boxed and circled, so this changes
-     nothing on today's page -- it keeps the mark inside its week the day one
-     is, which is what test_ptsa_circles_stay_inside_their_row measures. */
+     ring on every side and the plain 10pt circle with a 0.75pt box stood 0.41px
+     proud of the week. Both dimensions are constrained, and they pull opposite
+     ways:
+
+       height -- the row is 14.667px, and ring + outline must fit inside it.
+       width  -- the content box must still hold a bold two-digit date. At 6pt
+                 bold, "31" is 8.9px wide.
+
+     9.5pt of ring plus 2 x 0.5pt of outline is 14.575px of ink, clearing the
+     row by 0.09px, and leaves a 10px content box for those 8.9px of digits.
+
+     Shrinking the ring instead of thinning the box is what went wrong the first
+     time: at 9pt with 0.5pt of padding the content box was 8.0px, so the date
+     overran its own ring on both sides -- an invisible 0.4px row overhang
+     traded for a visible collision. There is no padding now: box-sizing is
+     border-box, so padding only eats the content box. It never separated the
+     border from the outline, which is what the comment here used to claim.
+
+     No day in the shipped CSV is both boxed and circled, so none of this shows
+     on today's page. test_a_day_carrying_every_mark_stays_inside_its_row and
+     test_the_date_fits_inside_every_mark build that day on purpose. */
   outline: 0.5pt solid #000;
-  width: 9pt;
-  height: 9pt;
-  line-height: 7.5pt;
+  width: 9.5pt;
+  height: 9.5pt;
+  line-height: 8pt;
 }
 
 /* Every mark on a no-school cell is drawn white, because the cell is solid

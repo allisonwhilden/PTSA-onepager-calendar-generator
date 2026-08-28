@@ -45,11 +45,18 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
    Nothing validates the header, so unlike these three a stale one fails
    silently. Do it first.
 
-4. **Put the year's events in `data/all_events.csv`.** Replace the old year's rows;
-   the calendar prints August through July of the year being built, so leftovers
-   from a previous year are reported as *notices* and never appear. Notices do
-   not fail the build even under `--strict`, so you can stage next year's dates
-   alongside this year's while you work.
+4. **Add the year's events to `data/all_events.csv`** — *add*, alongside the
+   rows already there. The calendar prints August through July of the year being
+   built, so rows outside that span are reported as *notices* and never appear.
+   Notices do not fail the build even under `--strict`, which is what lets both
+   years sit in the file at once.
+
+   **Do not delete the outgoing year's rows until its year has ended.** Until
+   then `build.py` is still building it, and a CSV holding only next year's
+   dates leaves it with nothing to draw: `--check --strict` exits 1 with *"none
+   of the N rows fall inside <year>, so the calendar would be blank"*, and
+   because CI runs the same command, the merge to `main` fails with it. Delete
+   them on the far side of the roll, when the new year is the one being built.
 
 5. **Check it before you build:**
 
@@ -86,7 +93,8 @@ snapshot is the only review the printed page gets.
 
 `build.py` builds the school year that *today* falls in. A config added early
 simply waits: it takes over on the August its own year begins, and until then
-the current year keeps building normally. The fallback only applies when the
+the current year keeps building normally — provided the current year still has
+its rows in the CSV, which is what step 4 is about. The fallback only applies when the
 current school year has no config at all -- then the build uses the newest
 config it has, says so, and **publishing is skipped** rather than serving a
 calendar that has already ended.
