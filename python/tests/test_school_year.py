@@ -2,6 +2,7 @@
 
 import datetime as dt
 import tomllib
+from pathlib import Path
 
 import pytest
 
@@ -100,9 +101,15 @@ def test_shipped_config_loads(years_dir):
     assert year.organization == "Horace Mann PTSA"
     assert year.early_release_start.weekday() == sy.WEDNESDAY
 
-    path = sy.config_path(years_dir, start_year)
-    assert path.name == f"{sy.label_for(start_year)}.toml"
-    on_disk = tomllib.loads(path.read_text(encoding="utf-8"))["dates"]
+    # Located by listing the directory, not by calling config_path -- resolving
+    # the file the same way load() does would compare load()'s output against
+    # the file load() chose, so a config_path pointing at the wrong year would
+    # still pass. path.name == label_for(start_year) + ".toml" was worse still:
+    # that is config_path's definition restated, an assertion that cannot fail.
+    matches = [p for p in Path(years_dir).glob("*.toml")
+               if p.stem == sy.label_for(start_year)]
+    assert len(matches) == 1, f"expected one config for {start_year}, got {matches}"
+    on_disk = tomllib.loads(matches[0].read_text(encoding="utf-8"))["dates"]
     assert year.early_release_start == on_disk["early_release_start"]
     assert year.last_day == on_disk["last_day"]
 

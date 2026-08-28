@@ -3192,13 +3192,26 @@ html, body {
   line-height: 7.5pt;
 }
 
-/* A PTSA event on a no-school day: red on black is barely legible, so the ring
-   goes white. 8/27 (Colt Corral, inside the LEAP Days block) is the live case.
+/* Every mark on a no-school cell is drawn white, because the cell is solid
+   black: a red ring is barely legible on it and a black box or outline is not
+   visible at all. 8/27 (Colt Corral, inside the LEAP Days block) is the live
+   case for the ring; the box is latent -- no boxed day is currently no-school,
+   but a year whose first or last day fell inside a closure would print a black
+   box on a black cell while the legend still advertised a First/Last key.
+
+   One rule per mark rather than one per combination: whichever marks a
+   no-school day happens to carry, they all turn white.
+
    Must sit after .day.diamond.circle span: that rule re-declares the `border`
-   shorthand at equal specificity, so on a day that is boxed, circled and
-   no-school, moving this rule above it would put the red back. */
-.day.mark-no_school.circle span {
+   shorthand at equal specificity, so moving these above it would put the black
+   and the red back. Guarded by test_marks_on_a_no_school_cell_are_visible. */
+.day.mark-no_school.circle span,
+.day.mark-no_school.diamond span {
   border-color: #fff;
+}
+
+.day.mark-no_school.diamond.circle span {
+  outline-color: #fff;
 }
 
 /* PTSA event on early release day - keep bold */

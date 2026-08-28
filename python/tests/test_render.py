@@ -44,8 +44,8 @@ def rendered_html(shipped_year, shipped_events):
     )
 
 
-STYLESHEET_HREF = re.compile(
-    r"""<link[^>]*\brel=["']stylesheet["'][^>]*\bhref=["']([^"']+)["']""")
+LINK_TAG = re.compile(r"<link\b[^>]*>")
+ATTR = re.compile(r"""\b(\w+)=["']([^"']*)["']""")
 
 
 def linked_stylesheets(html: str) -> list[str]:
@@ -55,8 +55,19 @@ def linked_stylesheets(html: str) -> list[str]:
     to the template is snapshotted the moment it is linked. Hardcoding
     styles/calendar.css would leave a second sheet -- this repo has carried
     calendar-backup.css before -- free to repaint the page unreviewed.
+
+    Attributes are parsed per tag rather than matched in a fixed order. A
+    pattern requiring rel= before href= silently skips `<link href=".."
+    rel="stylesheet">`, which is an ordinary way to write the tag -- and skipping
+    it is exactly the blind spot this function exists to close, made worse by
+    being invisible: the sheet just never reaches the snapshot.
     """
-    return STYLESHEET_HREF.findall(html)
+    out = []
+    for tag in LINK_TAG.findall(html):
+        attrs = dict(ATTR.findall(tag))
+        if attrs.get("rel", "").lower() == "stylesheet" and attrs.get("href"):
+            out.append(attrs["href"])
+    return out
 
 
 @pytest.fixture(scope="session")
@@ -233,9 +244,18 @@ def _ptsa_circles(page):
     return out
 
 
-def test_calendar_is_exactly_one_page(laid_out):
-    """The whole point of the product. If this fails, nothing else matters."""
-    assert len(laid_out.pages) == 1
+def test_calendar_is_exactly_one_page(built_pdf):
+    """The whole point of the product. If this fails, nothing else matters.
+
+    Counted in the written PDF, because the PDF is what goes home with
+    families. Counting `laid_out.pages` instead would be the very call
+    test_count_pages_reports_one_for_the_shipped_page already makes --
+    count_pages is `len(layout_pages(html).pages)` -- so the one-page promise
+    would rest on the same computation twice and on nothing that opens the
+    file. built_pdf is already rendered for test_page_is_us_letter.
+    """
+    pypdf = pytest.importorskip("pypdf")
+    assert len(pypdf.PdfReader(built_pdf).pages) == 1
 
 
 def test_page_is_us_letter(built_pdf):
@@ -255,6 +275,106 @@ def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
     """`--check` uses this to protect the one-page promise before a push."""
     pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
     assert render.count_pages(rendered_html) == 1
+
+
+@pytest.fixture(scope="session")
+def stress_page():
+    """A page where one day carries every mark at once: boxed, circled, closed.
+
+    No day in the shipped CSV is both boxed and circled, so
+    `.day.diamond.circle span` -- and the no-school recolouring of it -- render
+    nowhere on the real page. Two review rounds asserted things about those
+    rules that no test could see. They exist for the year a first or last day
+    lands on a PTSA event or inside a closure, which is precisely the year
+    nobody will be reading the CSS, so this builds that day on purpose.
+    """
+    pytest.importorskip("weasyprint", reason="WeasyPrint needs system libraries")
+    marked = dt.date(2026, 9, 8)
+    year = school_year.SchoolYear(
+        start_year=2026,
+        organization="Horace Mann PTSA",
+        early_release_start=dt.date(2026, 9, 9),
+        last_day=dt.date(2027, 6, 16),
+        boxed_days=frozenset({marked}),
+    )
+    events = [
+        ev.Event(marked, marked, et.resolve("ptsa_event"), "Ring"),
+        ev.Event(marked, marked, et.resolve("no_school"), "Closed"),
+    ]
+    html = render.render_html(
+        year,
+        layout.build_months(layout.events_by_date(events, year), year),
+        layout.build_important_dates(events, year),
+        generated_at=FROZEN,
+    )
+    return render.layout_pages(html)
+
+
+def _marked_span(page):
+    """The span on the stress page's every-mark day, with its cell."""
+    for box, chain in _boxes(page):
+        if getattr(box, "element_tag", None) != "span":
+            continue
+        cell = next((a for a in reversed(chain)
+                     if getattr(a, "element_tag", None) == "td"), None)
+        if cell is None:
+            continue
+        classes = set(cell.element.get("class", "").split())
+        if {"mark-no_school", "diamond", "circle"} <= classes:
+            return box, cell
+    pytest.fail("the stress page never drew a boxed, circled, no-school day")
+
+
+def test_a_day_carrying_every_mark_stays_inside_its_row(stress_page):
+    """The combined mark is the widest thing the stylesheet puts in a cell.
+
+    An outline draws outside the border box, so this mark needs more room than
+    the plain ring and is the one that overflows first.
+    """
+    circles = _ptsa_circles(stress_page.pages[0])
+    outlined = [(c, r) for c, r in circles if c.style["outline_width"]]
+    assert outlined, "the stress page drew no outlined mark"
+
+    spills = []
+    for circle, row in outlined:
+        row_top, row_bottom = row.position_y, row.position_y + row.border_height()
+        outline = circle.style["outline_width"]
+        top = circle.border_box_y() - outline
+        bottom = circle.border_box_y() + circle.border_height() + outline
+        over = max(row_top - top, bottom - row_bottom)
+        if over > 0.05:
+            spills.append(round(over, 2))
+
+    assert not spills, (
+        f"{len(spills)} of {len(outlined)} boxed-and-circled marks spill out of "
+        f"their week row by up to {max(spills)}px"
+    )
+
+
+def test_marks_on_a_no_school_cell_are_visible(stress_page):
+    """A no-school cell is solid black, so a black mark on it draws nothing.
+
+    The ring was recoloured white for 8/27 (Colt Corral, inside LEAP Days); the
+    box and its outline were left black, which on a closure day would print a
+    black box on a black cell while the legend still promised a First/Last key.
+    """
+    span, cell = _marked_span(stress_page.pages[0])
+
+    def luminance(rgba):
+        return 0.2126 * rgba[0] + 0.7152 * rgba[1] + 0.0722 * rgba[2]
+
+    assert luminance(cell.style["background_color"]) < 0.2, (
+        "expected a black no-school cell to test against")
+
+    marks = {"border": span.style["border_top_color"]}
+    if span.style["outline_width"]:
+        marks["outline"] = span.style["outline_color"]
+
+    invisible = {name: tuple(round(c, 2) for c in colour)
+                 for name, colour in marks.items()
+                 if luminance(colour) < 0.5}
+    assert not invisible, (
+        f"drawn dark on a black no-school cell, so invisible: {invisible}")
 
 
 def test_every_week_row_is_the_same_height(laid_out):

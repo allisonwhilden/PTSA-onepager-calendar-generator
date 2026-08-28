@@ -26,7 +26,14 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
    cp data/years/2026-27.toml data/years/2027-28.toml
    ```
 
-2. **Set the three values** in the new file:
+2. **Re-stamp the header.** The comment at the top of the file you just copied
+   records which LWSD revision its dates were checked against — the whole point
+   of the section above. Copied forward unedited it becomes a false claim, in
+   the one place meant to protect you from exactly that. Replace the revision
+   line, and delete the worked example of what moved between revisions; it
+   belongs to the year you copied from.
+
+3. **Set the three values** in the new file:
    - `early_release_start` — the first early-release Wednesday
    - `last_day` — the last day of school
    - `boxed_days` — the days school starts and ends, drawn with the box
@@ -35,13 +42,16 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
    previous year are rejected with a message saying so, rather than quietly
    drawing nothing.
 
-3. **Put the year's events in `data/all_events.csv`.** Replace the old year's rows;
+   Nothing validates the header, so unlike these three a stale one fails
+   silently. Do it first.
+
+4. **Put the year's events in `data/all_events.csv`.** Replace the old year's rows;
    the calendar prints August through July of the year being built, so leftovers
    from a previous year are reported as *notices* and never appear. Notices do
    not fail the build even under `--strict`, so you can stage next year's dates
    alongside this year's while you work.
 
-4. **Check it before you build:**
+5. **Check it before you build:**
 
    ```bash
    python python/build.py --check --strict
@@ -50,7 +60,7 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
    This validates every row and tells you about anything questionable, without
    spending time rendering.
 
-5. **Review the new page and record it.** The golden snapshot is per-year, so
+6. **Review the new page and record it.** The golden snapshot is per-year, so
    the first run for a new year fails on purpose:
 
    ```
@@ -65,13 +75,13 @@ Preschool dates are deliberately left out of this calendar — see commit 64e306
 
    Until you do, `pytest` fails and the workflow will not publish.
 
-6. **Build it:**
+7. **Build it:**
 
    ```bash
    python python/build.py
    ```
 
-No code changes and no workflow changes -- but step 5 is not optional: the
+No code changes and no workflow changes -- but step 6 is not optional: the
 snapshot is the only review the printed page gets.
 
 `build.py` builds the school year that *today* falls in. A config added early

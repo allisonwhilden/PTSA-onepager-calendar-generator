@@ -90,10 +90,12 @@ From the repo root:
 pytest
 ```
 
-104 tests covering type resolution, CSV validation, config validation, grid
+106 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
-plus a golden snapshot of the rendered page and an assertion that the PDF is
-exactly one Letter page.
+plus a golden snapshot of the rendered page and of the stylesheet that paints
+it, geometry checks that every week row is the same height and that no mark
+spills into the next week, and an assertion that the built PDF is exactly one
+Letter page.
 
 The snapshot follows whichever year the repo ships, so rolling to a new year
 fails once with "this year's page has never been reviewed" — look it over, then
