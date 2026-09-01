@@ -217,10 +217,13 @@ html, body {
 
 /* Every mark on a no-school cell is drawn white, because the cell is solid
    black: a red ring is barely legible on it and a black box or outline is not
-   visible at all. 8/27 (Colt Corral, inside the LEAP Days block) is the live
-   case for the ring; the box is latent -- no boxed day is currently no-school,
-   but a year whose first or last day fell inside a closure would print a black
-   box on a black cell while the legend still advertised a First/Last key.
+   visible at all. Both branches are currently latent: no day in the shipped CSV
+   is both no-school and marked, so the built page shows this rule doing nothing
+   and you cannot check it against the PDF. It was live until the August LEAP
+   week came out -- 8/27 (Colt Corral) sat inside that black block and its ring
+   was drawn white. Put any PTSA event on a closure day, or a first/last day
+   inside one, and it is live again. Guarded on a synthetic page instead:
+   see test_marks_on_a_no_school_cell_are_visible.
 
    One rule per mark rather than one per combination: whichever marks a
    no-school day happens to carry, they all turn white.

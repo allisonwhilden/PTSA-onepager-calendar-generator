@@ -18,6 +18,13 @@ calendar, Elementary Grades Due moved from Jan 13 to Jan 20.
 
 Preschool dates are deliberately left out of this calendar — see commit 64e3061.
 
+The **August LEAP week** is left out too. Those are staff days before school
+starts, so they tell a parent nothing while costing a solid black week on the
+grid and a line in the dates list. LWSD prints the block every year (`Aug. 24-28`
+for 2026-27, `Aug. 25-29` the year before), so at a roll it looks like a date you
+forgot — it isn't. The *single* LEAP Days during the year are no-school days for
+students and are kept.
+
 ## Rolling to a new year
 
 1. **Copy the newest config.**

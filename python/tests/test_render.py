@@ -434,9 +434,12 @@ def test_the_date_fits_inside_every_mark(stress_page, laid_out):
 def test_marks_on_a_no_school_cell_are_visible(stress_page):
     """A no-school cell is solid black, so a black mark on it draws nothing.
 
-    The ring was recoloured white for 8/27 (Colt Corral, inside LEAP Days); the
-    box and its outline were left black, which on a closure day would print a
-    black box on a black cell while the legend still promised a First/Last key.
+    The ring was recoloured white when 8/27 (Colt Corral) sat inside the August
+    LEAP block; the box and its outline were left black, which on a closure day
+    would print a black box on a black cell while the legend still promised a
+    First/Last key. That August block is out of the CSV now, so no shipped day
+    exercises either branch -- which is why this runs on stress_page rather than
+    pointing at a date on the real calendar.
     """
     span, cell = _marked_span(stress_page.pages[0])
 
