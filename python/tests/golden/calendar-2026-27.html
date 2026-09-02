@@ -3069,7 +3069,7 @@ html, body {
 .month-grid tbody td {
   border: 0.75pt solid #5a5a5a;
   text-align: center;
-  font-size: 7.5pt;
+  font-size: 8pt;
   padding: 1pt 0;
   height: 12pt;
   vertical-align: middle;
@@ -3086,17 +3086,32 @@ html, body {
   margin-right: 1pt;
 }
 
+/* Cells before the 1st and after the last carry no date, so their borders draw
+   a box around nothing. At #ddd that went unnoticed; at a grid dark enough to
+   read, December's leading gap and November's whole trailing row start to look
+   like content. Recessive rather than absent -- going near-invisible leaves the
+   month's rectangle looking ragged at the corners, which is worse. */
+.day.empty {
+  border-color: #b8b8b8;
+}
+
 /* Weekend days: still set back from weekdays, but legibly. #999 was 2.85:1 --
    below WCAG AA even for large text, on two of the seven columns parents scan
    for most. #5f5f5f is 6.4:1 and still reads as secondary. */
 .day.weekend {
-  color: #4f4f4f;
+  color: #5f5f5f;
 }
 
 /* Event marking */
 .day.mark-no_school {
   background: #000;
   color: #fff;
+
+  /* Inside a run of closed days the grid line is the only thing separating one
+     day from the next, and the darker grid put a #5a5a5a line on a #000 fill --
+     about 3:1, where the old #ddd was 15:1. Winter Break printed as one bar a
+     parent could not count. The line goes light on the black instead. */
+  border-color: #9a9a9a;
 }
 
 .day.mark-half_day {
@@ -3179,27 +3194,30 @@ html, body {
      proud of the week. Both dimensions are constrained, and they pull opposite
      ways:
 
-       height -- the row is 14.667px, and ring + outline must fit inside it.
-       width  -- the content box must still hold a bold two-digit date. At 6pt
-                 bold, "31" is 8.9px wide.
+       height -- the row is 16px, and ring + outline must fit inside it.
+       width  -- the content box must still hold a bold two-digit date. At
+                 6.5pt bold, "31" is 9.6px wide.
 
-     9.5pt of ring plus 2 x 0.5pt of outline is 14.575px of ink, clearing the
-     row by 0.09px, and leaves a 10px content box for those 8.9px of digits.
+     The week row is 16px (a 12pt cell). 10pt of ring plus 2 x 0.5pt of
+     outline is 14.67px of ink, and leaves a 10.67px content box for a 9.6px
+     bold date -- 1.03px of slack, up from 0.36px when the ring was 9.5pt.
+     A 0.75pt outline at this diameter spills the row; the sweep is in the
+     commit message.
 
-     Shrinking the ring instead of thinning the box is what went wrong the first
-     time: at 9pt with 0.5pt of padding the content box was 8.0px, so the date
-     overran its own ring on both sides -- an invisible 0.4px row overhang
-     traded for a visible collision. There is no padding now: box-sizing is
-     border-box, so padding only eats the content box. It never separated the
-     border from the outline, which is what the comment here used to claim.
+     Shrinking the ring instead is what went wrong the first time: at 9pt with
+     0.5pt of padding the content box was 8.0px and the date overran its own
+     ring on both sides -- an invisible row overhang traded for a visible
+     collision. There is no padding now: box-sizing is border-box, so padding
+     only eats the content box. It never separated the border from the outline,
+     which is what the comment here used to claim.
 
      No day in the shipped CSV is both boxed and circled, so none of this shows
      on today's page. test_a_day_carrying_every_mark_stays_inside_its_row and
      test_the_date_fits_inside_every_mark build that day on purpose. */
   outline: 0.5pt solid #000;
-  width: 9.5pt;
-  height: 9.5pt;
-  line-height: 8pt;
+  width: 10pt;
+  height: 10pt;
+  line-height: 8.5pt;
 }
 
 /* Every mark on a no-school cell is drawn white, because the cell is solid
@@ -3283,7 +3301,7 @@ html, body {
 
 .symbol {
   font-weight: bold;
-  font-size: 7pt;
+  font-size: 7.5pt;
   display: inline-block;
   width: 6pt;
   text-align: center;
@@ -3295,7 +3313,7 @@ html, body {
   padding: 0 1pt;
   display: inline-block;
   font-weight: bold;
-  font-size: 5pt;
+  font-size: 6.5pt;
   line-height: 1;
 }
 .legend-circle {
@@ -3307,7 +3325,7 @@ html, body {
   text-align: center;
   display: inline-block;
   font-weight: normal;
-  font-size: 5pt;
+  font-size: 6.5pt;
 }
 .bold-demo {
   font-weight: 900;
@@ -3327,15 +3345,18 @@ html, body {
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 7.5pt;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .important-dates-table td {
   vertical-align: top;
   padding: 0 8pt;
   width: 50%;
 }
+/* 0.5pt, not 1pt: the type went 6.5pt -> 7.5pt and the leading is doing the
+   separating now. This is also what buys the growth headroom back -- 22 list
+   rows at 1pt of vertical padding each was costing more than the font did. */
 .important-dates-table .date-item {
-  padding: 1pt 2pt;
+  padding: 0.5pt 2pt;
   break-inside: avoid;
 }
 .important-dates-table .date-item b {
