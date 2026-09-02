@@ -2993,7 +2993,7 @@
 
 html, body {
   font-family: Arial, sans-serif;
-  font-size: 7.5pt;
+  font-size: 8pt;
   line-height: 1.1;
 }
 
@@ -3009,8 +3009,8 @@ html, body {
   justify-content: space-between;
   align-items: center;
   background: transparent;
-  padding: 6pt 0 8pt 0;
-  margin-bottom: 8pt;
+  padding: 3pt 0 5pt 0;
+  margin-bottom: 5pt;
 }
 .topbar .title {
   font-size: 12pt;
@@ -3031,22 +3031,22 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  margin-bottom: 4pt;
+  margin-bottom: 2pt;
 }
 
 /* Individual month - exactly 1/3 width minus gaps */
 .month {
   width: 32.5%;
-  margin-bottom: 6pt;
+  margin-bottom: 4pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 .month header {
   font-weight: 700;
-  font-size: 8pt;
+  font-size: 8.5pt;
   text-align: center;
-  margin-bottom: 2pt;
-  padding: 2pt 4pt;
+  margin-bottom: 1pt;
+  padding: 1pt 4pt;
   letter-spacing: 0.02em;
 }
 
@@ -3057,21 +3057,21 @@ html, body {
   table-layout: fixed;
 }
 .month-grid thead th {
-  font-size: 5.5pt;
+  font-size: 6.5pt;
   padding: 2pt 0;
-  border-bottom: 0.5pt solid #ddd;
-  font-weight: 600;
+  border-bottom: 1pt solid #555;
+  font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-align: center;
-  color: #666;
+  color: #333;
 }
 .month-grid tbody td {
-  border: 0.5pt solid #ddd;
+  border: 0.75pt solid #5a5a5a;
   text-align: center;
-  font-size: 6.5pt;
+  font-size: 7.5pt;
   padding: 1pt 0;
-  height: 11pt;
+  height: 12pt;
   vertical-align: middle;
 }
 
@@ -3082,13 +3082,15 @@ html, body {
   display: inline-block;
   font-weight: bold;
   line-height: 1;
-  font-size: 6pt;
+  font-size: 6.5pt;
   margin-right: 1pt;
 }
 
-/* Weekend days - subtle styling */
+/* Weekend days: still set back from weekdays, but legibly. #999 was 2.85:1 --
+   below WCAG AA even for large text, on two of the seven columns parents scan
+   for most. #5f5f5f is 6.4:1 and still reads as secondary. */
 .day.weekend {
-  color: #999;
+  color: #4f4f4f;
 }
 
 /* Event marking */
@@ -3158,7 +3160,7 @@ html, body {
   line-height: 8.5pt;
   text-align: center;
   padding: 0;
-  font-size: 6pt;
+  font-size: 6.5pt;
   margin-right: 1pt;
   vertical-align: middle;
   margin-top: -1pt;
@@ -3236,9 +3238,9 @@ html, body {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  padding: 6pt 0;
-  margin: 4pt 0;
-  font-size: 6.5pt;
+  padding: 3pt 0;
+  margin: 2pt 0;
+  font-size: 7.5pt;
 }
 
 .legend-item {
@@ -3259,7 +3261,7 @@ html, body {
 .chip {
   width: 6pt;
   height: 6pt;
-  border: 0.5pt solid #000;
+  border: 0.6pt solid #000;
   display: inline-block;
   flex-shrink: 0;
 }
@@ -3315,7 +3317,7 @@ html, body {
 /* Important Dates - Table-based for WeasyPrint compatibility */
 .important {
   width: 100%;
-  padding-top: 4pt;
+  padding-top: 2pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -3324,8 +3326,8 @@ html, body {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 6.5pt;
-  line-height: 1.2;
+  font-size: 7.5pt;
+  line-height: 1.25;
 }
 .important-dates-table td {
   vertical-align: top;
@@ -3343,7 +3345,7 @@ html, body {
 
 /* District events styling */
 .important-dates-table .district-event {
-  color: #555;
+  color: #222;
 }
 
 /* PTSA events styling with accent */
@@ -3358,15 +3360,16 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 5.5pt;
-  color: #888;
-  padding-top: 6pt;
-  margin-top: 6pt;
+  font-size: 6.5pt;
+  font-weight: 600;
+  color: #444;
+  padding-top: 4pt;
+  margin-top: 3pt;
 }
 .page-footer span {
   margin: 0 6pt;
 }
 .page-footer .separator {
-  color: #aaa;
+  color: #777;
   margin: 0 2pt;
 }
