@@ -273,7 +273,7 @@ def _ptsa_circles(page):
     return out
 
 
-def _spills(circles, tolerance: float = 0.05) -> list[float]:
+def _spills(circles, tolerance: float = 0.01) -> list[float]:
     """How far each mark is drawn outside its week row, where that is at all.
 
     Measured as ink, not layout: from border_box_y() (position_y is the *margin*
@@ -284,7 +284,9 @@ def _spills(circles, tolerance: float = 0.05) -> list[float]:
 
     One implementation, two callers: this measurement has been wrong once
     already, and it should not be possible to fix it in one test and not the
-    other. The tolerance is float noise, not headroom for a partial fix.
+    other. The tolerance is float noise, not headroom for a partial fix -- it
+    was 0.05 and hid a mark drawing 0.04px below its row, so it is 0.01 now.
+    Every mark currently clears by more than half a pixel.
     """
     out = []
     for circle, row in circles:

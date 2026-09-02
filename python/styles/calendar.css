@@ -8,7 +8,7 @@
 
 html, body {
   font-family: Arial, sans-serif;
-  font-size: 8pt;
+  font-size: 7.5pt;
   line-height: 1.1;
 }
 
@@ -70,11 +70,18 @@ html, body {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+
+  /* The frame is drawn here, not by the cells. Under border-collapse a cell's
+     border-color also wins the edges it shares with the table's rim, so the
+     no-school and empty-cell colours below were repainting parts of the outer
+     rectangle -- November's bottom edge went #b8b8b8, December's right edge
+     #9a9a9a. An outline sits outside the collapse and stays uniform. */
+  outline: 0.75pt solid #5a5a5a;
 }
 .month-grid thead th {
   font-size: 6.5pt;
   padding: 2pt 0;
-  border-bottom: 1pt solid #555;
+  border-bottom: 1pt solid #5a5a5a;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -125,8 +132,14 @@ html, body {
   /* Inside a run of closed days the grid line is the only thing separating one
      day from the next, and the darker grid put a #5a5a5a line on a #000 fill --
      about 3:1, where the old #ddd was 15:1. Winter Break printed as one bar a
-     parent could not count. The line goes light on the black instead. */
-  border-color: #9a9a9a;
+     parent could not count.
+
+     #777 rather than something lighter: under border-collapse this colour also
+     wins the edges this cell shares with white ones, so it has to read on both
+     grounds -- 4.7:1 on black, 4.5:1 on white. #9a9a9a read well on the black
+     and put a 2.8:1 line on the white, which is the contrast this pass removed
+     from the weekend numbers. */
+  border-color: #777;
 }
 
 .day.mark-half_day {
@@ -174,13 +187,21 @@ html, body {
       -> 10pt is the largest size that satisfies both: at 10.5pt and above the
          row grows again. Guarded by test_ptsa_circles_stay_inside_their_row.
 
-   Do not add `position: relative; top: ...` here to nudge the ring. A previous
-   attempt did, on a measurement that read WeasyPrint's position_y as the border
-   box. It is the *margin* box, and margin-top is negative here, so the ring was
-   really 0.59px high of its row -- the nudge caused the overhang it was meant
-   to correct. vertical-align: middle already centres it: 0.74px clear above,
-   0.59px below. */
+   The `top` below is a real correction, and the reason to be careful with it:
+   an earlier attempt at this was chosen from WeasyPrint's position_y, which is
+   the *margin* box, not the border box -- with a negative margin-top that
+   under-read the overhang and the nudge caused the overhang it meant to fix.
+   Measure from border_box_y(), as _spills() in the tests does.
+
+   Measured that way at an 8pt cell font, all 34 rings sat low: 2.04px of slack
+   above, 0.54px below, and the boxed-and-circled mark drew 0.04px outside the
+   row. vertical-align: middle centres the box on the parent's baseline plus
+   half its x-height, which is not the middle of the cell, and the gap grew with
+   the type. -0.5pt splits it: about 1.2px above and below on the plain ring,
+   0.7px and 0.6px on the combined mark. */
 .day.circle span {
+  position: relative;
+  top: -0.5pt;
   border: 1pt solid #C40A0C;
   border-radius: 50%;
   width: 10pt;
@@ -325,7 +346,7 @@ html, body {
 /* Legend demo icons */
 .legend-diamond {
   border: 0.75pt solid #000;
-  padding: 0 1pt;
+  padding: 0 1.5pt;
   display: inline-block;
   font-weight: bold;
   font-size: 6.5pt;
@@ -397,7 +418,7 @@ html, body {
   justify-content: center;
   align-items: center;
   font-size: 6.5pt;
-  font-weight: 600;
+  font-weight: 700;
   color: #444;
   padding-top: 4pt;
   margin-top: 3pt;
