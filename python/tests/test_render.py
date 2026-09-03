@@ -475,6 +475,35 @@ def test_marks_on_a_no_school_cell_are_visible(stress_page):
         f"drawn dark on a black no-school cell, so invisible: {invisible}")
 
 
+def test_the_footer_sits_at_the_bottom_of_the_page(laid_out):
+    """The "Updated ..." line belongs on the bottom edge, not under the list.
+
+    It is put there by exactly two declarations -- display:flex on
+    .page-wrapper and flex:1 on .page-main -- and removing either drops it 55pt
+    back up the page. Everything that looks like it would do the job instead
+    (min-height:100%, min-height:calc(), margin-top:auto on the footer) computes
+    away to nothing in this WeasyPrint and leaves the footer mid-page with the
+    suite green. That is why this is a test and not a comment.
+    """
+    page = laid_out.pages[0]
+    root = page._page_box
+    html_box = next(b for b, _ in _boxes(page)
+                    if getattr(b, "element_tag", None) == "html")
+    printable_bottom = html_box.position_y + root.height
+
+    footers = [b for b, _ in _boxes(page)
+               if getattr(b, "element", None) is not None
+               and "page-footer" in (b.element.get("class") or "").split()]
+    assert footers, "no footer on the page"
+    bottom = max(f.position_y + f.border_height() for f in footers)
+
+    gap_pt = (printable_bottom - bottom) / (96 / 72)
+    assert -0.5 <= gap_pt <= 4, (
+        f"the footer ends {gap_pt:.1f}pt above the bottom of the printable "
+        f"area; it should sit on it"
+    )
+
+
 def test_every_week_row_is_the_same_height(laid_out):
     """A PTSA circle must not make its week taller than the others.
 

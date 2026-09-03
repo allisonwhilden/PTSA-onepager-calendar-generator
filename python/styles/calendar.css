@@ -12,10 +12,41 @@ html, body {
   line-height: 1.1;
 }
 
-/* Main wrapper - prevents page breaks inside */
+/* Main wrapper - prevents page breaks inside.
+
+   A flex column the full height of the page area, so the footer can be pushed
+   to the bottom with margin-top:auto rather than floating just under the dates
+   list with an inch of paper below it. Deliberately not position:fixed --
+   out of flow, the list could grow underneath the footer and overlap it, and
+   the one-page guard would not see that. */
 .page-wrapper {
   page-break-inside: avoid;
   break-inside: avoid;
+  display: flex;
+  flex-direction: column;
+
+}
+
+/* Everything above the footer. `flex: 1` makes it absorb the leftover height of
+   the page, which is what pushes the footer onto the bottom edge instead of
+   leaving it under the dates list with an inch of paper below.
+
+   These two rules -- display:flex here and flex:1 there -- are the whole
+   mechanism, and both are load-bearing: drop either and the footer floats 55pt
+   up the page. Three things that look like they would do this job do not, and
+   all three fail silently:
+
+     min-height: 100%   computes to auto (body has no definite height)
+     min-height: calc() computes to auto in WeasyPrint 61.2
+     margin-top: auto   computes, then resolves to 0 on the flex item
+
+   An explicit min-height on this wrapper is not needed either -- measured, the
+   footer lands identically with it set to 756pt or to 0. Guarded by
+   test_the_footer_sits_at_the_bottom_of_the_page. Deliberately not
+   position:fixed: out of flow, the dates list could grow underneath the footer
+   and overlap it, and the one-page guard would not see that. */
+.page-main {
+  flex: 1;
 }
 
 /* Header - Modern minimal design */
@@ -52,7 +83,7 @@ html, body {
 /* Individual month - exactly 1/3 width minus gaps */
 .month {
   width: 32.5%;
-  margin-bottom: 4pt;
+  margin-bottom: 8pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -71,22 +102,36 @@ html, body {
   border-collapse: collapse;
   table-layout: fixed;
 
-  /* The frame is drawn here, not by the cells. Under border-collapse a cell's
-     border-color also wins the edges it shares with the table's rim, so the
-     no-school and empty-cell colours below were repainting parts of the outer
-     rectangle -- November's bottom edge went #b8b8b8, December's right edge
-     #9a9a9a. An outline sits outside the collapse and stays uniform. */
+}
+
+/* The frame is drawn here, on the body of days, not on the table and not by the
+   cells.
+
+   Not by the cells: under border-collapse a cell's border-color also wins the
+   edges it shares with the table's rim, so the no-school and empty-cell colours
+   below were repainting parts of the outer rectangle -- November's bottom edge
+   went #b8b8b8, December's right edge #9a9a9a. An outline sits outside the
+   collapse and stays uniform.
+
+   Not on the table: that put the frame's top edge above the Su/Mo/Tu labels, so
+   they read as another row of the grid rather than as its key. Framing the
+   tbody leaves them outside it, which is what lets the rule under them go. */
+.month-grid tbody {
   outline: 0.75pt solid #5a5a5a;
 }
 .month-grid thead th {
   font-size: 6.5pt;
-  padding: 2pt 0;
-  border-bottom: 1pt solid #5a5a5a;
+  padding: 1pt 0 3pt 0;
+  border-bottom: none;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-align: center;
-  color: #333;
+
+  /* Grey and unruled. At #333 with a 1pt rule under it this row had almost the
+     weight of the dates themselves and read as part of the grid; it is a key
+     you read once, so it recedes and the space below it does the separating. */
+  color: #6b6b6b;
 }
 .month-grid tbody td {
   border: 0.75pt solid #5a5a5a;
@@ -421,6 +466,7 @@ html, body {
   font-weight: 700;
   color: #444;
   padding-top: 4pt;
+  padding-bottom: 2pt;
   margin-top: 3pt;
 }
 .page-footer span {

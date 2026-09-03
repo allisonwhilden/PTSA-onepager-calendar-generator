@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="page-wrapper">
+  <div class="page-main">
   <header class="topbar">
     <div class="title">{{ header_lead }}{% if header_accent %} <span class="accent">{{ header_accent }}</span>{% endif %} | {{ year_label }} Calendar</div>
     <div class="logo-area"></div>
@@ -65,6 +66,8 @@
       </tr>
     </table>
   </section>
+
+  </div>
 
   <footer class="page-footer">
     <span>Updated {{ generated_at }}</span>
