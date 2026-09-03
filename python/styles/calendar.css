@@ -162,11 +162,20 @@ html, body {
   border-color: #b8b8b8;
 }
 
-/* Weekend days: still set back from weekdays, but legibly. #999 was 2.85:1 --
-   below WCAG AA even for large text, on two of the seven columns parents scan
-   for most. #5f5f5f is 6.4:1 and still reads as secondary. */
+/* Weekend days sit back from the school days: nobody is looking up a Saturday.
+   #8c8c8c is 3.4:1 -- deliberately below the 4.5:1 you would want for text that
+   has to be read, because these are reference, not content, and the whole point
+   is that the eye skips them.
+
+   Not lighter than this. The stylesheet started at #999 (2.8:1), which is a
+   large part of why the printed page read washed out, and light greys at this
+   size come off a laser as halftone dots that break up the digits.
+
+   Any fill wins over this colour -- see .day.mark-no_school below, which is
+   later at equal specificity, so a weekend that is also a closure keeps its
+   white numeral on black. Guarded by test_every_day_number_is_legible_on_its_cell. */
 .day.weekend {
-  color: #5f5f5f;
+  color: #8c8c8c;
 }
 
 /* Event marking */

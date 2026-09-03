@@ -273,6 +273,33 @@ def _ptsa_circles(page):
     return out
 
 
+PAPER = (1.0, 1.0, 1.0)
+
+
+def _over(rgba, backdrop=PAPER):
+    """`rgba` composited onto `backdrop`, as (r, g, b).
+
+    Alpha is not optional. Reading the raw channels and ignoring it scores
+    rgba(0, 0, 0, 0.12) -- a near-white cell -- as pure black, and
+    rgba(255, 255, 255, 0.05) as pure white.
+    """
+    r, g, b, a = rgba
+    return tuple(a * c + (1 - a) * back for c, back in zip((r, g, b), backdrop))
+
+
+def _luminance(rgb):
+    def channel(v):
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast(fg_rgb, bg_rgb):
+    a, b = _luminance(fg_rgb), _luminance(bg_rgb)
+    hi, lo = max(a, b), min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 def _spills(circles, tolerance: float = 0.01) -> list[float]:
     """How far each mark is drawn outside its week row, where that is at all.
 
@@ -445,34 +472,68 @@ def test_marks_on_a_no_school_cell_are_visible(stress_page):
     """
     span, cell = _marked_span(stress_page.pages[0])
 
-    def over(rgba, backdrop):
-        """`rgba` composited onto `backdrop`, as (r, g, b).
-
-        Alpha is not optional here. Reading the raw channels and ignoring it
-        scores rgba(0, 0, 0, 0.12) -- a near-white cell -- as pure black, which
-        would satisfy the precondition below and then certify a white-on-white
-        ring as visible. It scores rgba(255, 255, 255, 0.05) as pure white too.
-        """
-        r, g, b, a = rgba
-        return tuple(a * c + (1 - a) * back for c, back in zip((r, g, b), backdrop))
-
-    def luminance(rgb):
-        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
-
-    paper = (1.0, 1.0, 1.0)
-    cell_rgb = over(cell.style["background_color"], paper)
-    assert luminance(cell_rgb) < 0.2, (
+    cell_rgb = _over(cell.style["background_color"])
+    assert _luminance(cell_rgb) < 0.2, (
         f"expected a black no-school cell to test against, got {cell_rgb}")
 
     marks = {"border": span.style["border_top_color"]}
     if span.style["outline_width"]:
         marks["outline"] = span.style["outline_color"]
 
-    invisible = {name: tuple(round(c, 2) for c in over(colour, cell_rgb))
+    invisible = {name: tuple(round(c, 2) for c in _over(colour, cell_rgb))
                  for name, colour in marks.items()
-                 if luminance(over(colour, cell_rgb)) < 0.5}
+                 if _luminance(_over(colour, cell_rgb)) < 0.5}
     assert not invisible, (
         f"drawn dark on a black no-school cell, so invisible: {invisible}")
+
+
+def test_every_day_number_is_legible_on_its_cell(laid_out):
+    """No date may disappear into the fill behind it.
+
+    In practice this pins one thing: how light the weekend grey may go. Every
+    fill -- no-school, half-day, closure -- sets its own colour in a rule that
+    comes after .day.weekend, so a weekend that lands on one keeps that rule's
+    black or white numeral and is never at risk. I wrote this test believing a
+    closure crossing a Saturday would strand grey-on-grey; it would not, and
+    the first version of this docstring said so wrongly.
+
+    Weekend numerals are deliberately light -- nobody looks up a Saturday -- and
+    sit at 3.36:1 on paper, under the 4.5:1 you would want for text meant to be
+    read. That is the intent, so the floor is 3:1 and it is close enough to
+    bite: the #999 the stylesheet started with is 2.85:1 and fails here.
+
+    Cells are taken one per element, outermost first. WeasyPrint wraps cell
+    content in anonymous LineBox and TextBox boxes that also report element_tag
+    "td"; and filtering on `background is not None` -- which an earlier version
+    did to skip them -- silently dropped every unfilled cell, which is all 315
+    weekend days, leaving the test vacuous and green.
+    """
+    faint = []
+    seen = set()
+    for box, _ in _boxes(laid_out.pages[0]):
+        if getattr(box, "element_tag", None) != "td":
+            continue
+        element = getattr(box, "element", None)
+        if element is None or id(element) in seen:
+            continue
+        seen.add(id(element))
+        classes = set((element.get("class") or "").split())
+        if "day" not in classes or "empty" in classes:
+            continue
+        text = "".join(t.text for t, _ in _boxes_of(box) if getattr(t, "text", None))
+        if not text.strip():
+            continue
+        cell_rgb = _over(box.style["background_color"])
+        ink_rgb = _over(box.style["color"], cell_rgb)
+        ratio = _contrast(ink_rgb, cell_rgb)
+        if ratio < 3.0:
+            faint.append((text.strip(), sorted(classes - {"day"}), round(ratio, 2)))
+
+    assert len(seen) > 500, f"only inspected {len(seen)} day cells; expected ~1000"
+    assert not faint, (
+        f"{len(faint)} day numbers fall below 3:1 against their own cell: "
+        f"{faint[:5]}"
+    )
 
 
 def test_the_footer_sits_at_the_bottom_of_the_page(laid_out):
