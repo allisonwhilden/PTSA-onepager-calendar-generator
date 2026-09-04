@@ -120,7 +120,7 @@ def build_day(date: dt.date, events: list[Event],
 
 
 def build_months(by_date: dict[dt.date, list[Event]], year: SchoolYear) -> list[Month]:
-    """The twelve month blocks, August through July."""
+    """The month blocks, August through June."""
     months = []
     for cal_year, cal_month in year.months():
         first_weekday, days_in_month = calendar.monthrange(cal_year, cal_month)

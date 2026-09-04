@@ -74,19 +74,29 @@ html, body {
 
 /* Month grid - flexbox with balanced spacing */
 .year-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  /* Not flex: WeasyPrint 61.2 ignores justify-content, so a partial last row
+     was spread edge to edge -- with July gone, May sat in column 1 and June in
+     column 3 with a hole between them. Inline-blocks simply fill from the left,
+     which puts the empty slot at the end where it belongs. */
+  font-size: 0;            /* swallow the whitespace between inline-blocks */
   margin-bottom: 2pt;
 }
 
 /* Individual month - exactly 1/3 width minus gaps */
 .month {
+  display: inline-block;
+  vertical-align: top;
+  font-size: 8pt;          /* restore inside the month; .year-grid zeroes it */
   width: 32.5%;
+  margin-right: 1.25%;
   margin-bottom: 8pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
+.month:nth-child(3n) {
+  margin-right: 0;
+}
+
 .month header {
   font-weight: 700;
   font-size: 8.5pt;
@@ -104,21 +114,16 @@ html, body {
 
 }
 
-/* The frame is drawn here, on the body of days, not on the table and not by the
-   cells.
+/* No separate frame. The outer edge is the outermost cells' own borders, which
+   is why every line on the grid is now one colour and one width.
 
-   Not by the cells: under border-collapse a cell's border-color also wins the
-   edges it shares with the table's rim, so the no-school and empty-cell colours
-   below were repainting parts of the outer rectangle -- November's bottom edge
-   went #b8b8b8, December's right edge #9a9a9a. An outline sits outside the
-   collapse and stays uniform.
-
-   Not on the table: that put the frame's top edge above the Su/Mo/Tu labels, so
-   they read as another row of the grid rather than as its key. Framing the
-   tbody leaves them outside it, which is what lets the rule under them go. */
-.month-grid tbody {
-  outline: 0.75pt solid #5a5a5a;
-}
+   There used to be an outline here because cell rules were repainting the rim:
+   under border-collapse a cell's border-color also wins the edges it shares
+   with the table's rim, so a lighter empty-cell colour and a lighter no-school
+   colour were bleeding into the frame. With a single colour there is nothing
+   left to leak, so the outline goes -- and with it the faint double edge it
+   drew just outside the cells. A lighter outer border was tried and reads as
+   exactly that double line. */
 .month-grid thead th {
   font-size: 6.5pt;
   padding: 1pt 0 3pt 0;
@@ -134,7 +139,7 @@ html, body {
   color: #6b6b6b;
 }
 .month-grid tbody td {
-  border: 0.75pt solid #5a5a5a;
+  border: 0.75pt solid #777;
   text-align: center;
   font-size: 8pt;
   padding: 1pt 0;
@@ -151,15 +156,6 @@ html, body {
   line-height: 1;
   font-size: 6.5pt;
   margin-right: 1pt;
-}
-
-/* Cells before the 1st and after the last carry no date, so their borders draw
-   a box around nothing. At #ddd that went unnoticed; at a grid dark enough to
-   read, December's leading gap and November's whole trailing row start to look
-   like content. Recessive rather than absent -- going near-invisible leaves the
-   month's rectangle looking ragged at the corners, which is worse. */
-.day.empty {
-  border-color: #b8b8b8;
 }
 
 /* Weekend days sit back from the school days: nobody is looking up a Saturday.
@@ -183,17 +179,6 @@ html, body {
   background: #000;
   color: #fff;
 
-  /* Inside a run of closed days the grid line is the only thing separating one
-     day from the next, and the darker grid put a #5a5a5a line on a #000 fill --
-     about 3:1, where the old #ddd was 15:1. Winter Break printed as one bar a
-     parent could not count.
-
-     #777 rather than something lighter: under border-collapse this colour also
-     wins the edges this cell shares with white ones, so it has to read on both
-     grounds -- 4.7:1 on black, 4.5:1 on white. #9a9a9a read well on the black
-     and put a 2.8:1 line on the white, which is the contrast this pass removed
-     from the weekend numbers. */
-  border-color: #777;
 }
 
 .day.mark-half_day {
@@ -434,7 +419,7 @@ html, body {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 7.5pt;
+  font-size: 8pt;
   line-height: 1.2;
 }
 .important-dates-table td {

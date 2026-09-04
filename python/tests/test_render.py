@@ -235,7 +235,7 @@ def _boxes_of(box, chain=()):
 
 
 def _week_rows(page):
-    """The seven-cell rows of the twelve month grids.
+    """The seven-cell rows of the month grids.
 
     Seven cells excludes both the "Su Mo Tu..." thead rows and the two-column
     Important Dates row, which is a tbody tr as well.
@@ -529,7 +529,10 @@ def test_every_day_number_is_legible_on_its_cell(laid_out):
         if ratio < 3.0:
             faint.append((text.strip(), sorted(classes - {"day"}), round(ratio, 2)))
 
-    assert len(seen) > 500, f"only inspected {len(seen)} day cells; expected ~1000"
+    # Every printed month contributes at least 28 dated cells; derived from
+    # MONTH_COUNT so shortening the year does not quietly gut this test.
+    floor = school_year.MONTH_COUNT * 28
+    assert len(seen) >= floor, f"only inspected {len(seen)} day cells; expected >= {floor}"
     assert not faint, (
         f"{len(faint)} day numbers fall below 3:1 against their own cell: "
         f"{faint[:5]}"
@@ -572,8 +575,10 @@ def test_every_week_row_is_the_same_height(laid_out):
     12pt it used to push its row to 19.3pt, so 22 of the 72 week rows were
     visibly taller. Negative vertical margins shrink what it contributes.
     """
+    expected = school_year.MONTH_COUNT * 6
     heights = [round(r.border_height(), 2) for r in _week_rows(laid_out.pages[0])]
-    assert len(heights) == 72, f"expected 12 months x 6 rows, got {len(heights)}"
+    assert len(heights) == expected, (
+        f"expected {school_year.MONTH_COUNT} months x 6 rows, got {len(heights)}")
     assert len(set(heights)) == 1, (
         f"week rows are not a uniform height: {sorted(set(heights))}")
 

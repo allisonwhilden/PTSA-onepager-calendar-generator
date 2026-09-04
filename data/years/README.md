@@ -53,7 +53,7 @@ students and are kept.
    silently. Do it first.
 
 4. **Add the year's events to `data/all_events.csv`** — *add*, alongside the
-   rows already there. The calendar prints August through July of the year being
+   rows already there. The calendar prints August through June of the year being
    built, so rows outside that span are reported as *notices* and never appear.
    Notices do not fail the build even under `--strict`, which is what lets both
    years sit in the file at once.

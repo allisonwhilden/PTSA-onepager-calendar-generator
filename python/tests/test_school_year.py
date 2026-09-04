@@ -114,10 +114,22 @@ def test_shipped_config_loads(years_dir):
     assert year.last_day == on_disk["last_day"]
 
 
-def test_printed_span_is_a_full_twelve_months(year):
+def test_the_printed_span_is_august_through_june(year):
+    """The grid stops at June; July holds nothing in a school year.
+
+    last_printed_day is asserted against the months list rather than a literal,
+    because the two decide the same thing from opposite ends: which dates get a
+    cell, and which are dropped as out-of-span notices. A July date that was in
+    span but had no month to draw it in would be listed pointing at nothing.
+    """
     assert year.first_printed_day == dt.date(2025, 8, 1)
-    assert year.last_printed_day == dt.date(2026, 7, 31)
-    assert len(year.months()) == 12
+    assert year.last_printed_day == dt.date(2026, 6, 30)
+    assert len(year.months()) == sy.MONTH_COUNT == 11
+    assert year.months()[0] == (2025, 8)
+    assert year.months()[-1] == (2026, 6)
+
+    last_year, last_month = year.months()[-1]
+    assert (year.last_printed_day.year, year.last_printed_day.month) == (last_year, last_month)
 
 
 def test_early_release_wednesdays_are_all_wednesdays_in_range(year):

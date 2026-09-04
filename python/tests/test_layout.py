@@ -3,6 +3,7 @@
 import datetime as dt
 
 from calendar_gen import layout
+from calendar_gen import school_year as sy
 from calendar_gen.event_types import resolve
 from calendar_gen.events import Event
 from calendar_gen.school_year import SchoolYear
@@ -19,14 +20,15 @@ def make(label, type_name, start, end=None):
 
 def test_every_month_is_a_full_six_week_block(year):
     months = layout.build_months({}, year)
-    assert len(months) == 12
+    assert len(months) == sy.MONTH_COUNT == 11
     assert all(len(m.cells) == layout.CELLS_PER_MONTH for m in months)
 
 
-def test_calendar_runs_august_through_july(year):
+def test_calendar_runs_august_through_june(year):
     months = layout.build_months({}, year)
     assert (months[0].name, months[0].year) == ("August", 2025)
-    assert (months[-1].name, months[-1].year) == ("July", 2026)
+    assert (months[-1].name, months[-1].year) == ("June", 2026)
+    assert "July" not in [m.name for m in months]
 
 
 def test_leading_blanks_put_the_first_day_on_the_right_weekday(year):

@@ -18,8 +18,12 @@ def _is_plain_date(value: object) -> bool:
     date-time through and it explodes on the first comparison."""
     return isinstance(value, dt.date) and not isinstance(value, dt.datetime)
 
-#: The calendar prints August through July, so the grid is a full 12 months.
+#: The calendar prints August through June: the school year, plus the August it
+#: starts in. July is left off -- nothing in a school year falls in it, and an
+#: empty month was spending a twelfth of the grid to say so. The months are
+#: therefore 3 + 3 + 3 + 2, with one empty slot at the end.
 FIRST_MONTH = 8
+MONTH_COUNT = 11
 WEDNESDAY = calendar.WEDNESDAY
 
 
@@ -63,8 +67,15 @@ class SchoolYear:
 
     @property
     def last_printed_day(self) -> dt.date:
-        end = dt.date(self.start_year + 1, FIRST_MONTH, 1)
-        return end - dt.timedelta(days=1)
+        """The last day of the last month the grid draws.
+
+        Derived from months() rather than stated on its own. These two decide
+        the same thing from opposite ends -- which dates get a cell, and which
+        get dropped as out-of-span notices -- so if they ever disagreed a date
+        could be listed with nowhere on the grid to point at.
+        """
+        year, month = self.months()[-1]
+        return dt.date(year, month, calendar.monthrange(year, month)[1])
 
     @property
     def header_parts(self) -> tuple[str, str]:
@@ -78,9 +89,9 @@ class SchoolYear:
         return self.organization, ""
 
     def months(self) -> list[tuple[int, int]]:
-        """(year, month) for each printed month, August through July."""
+        """(year, month) for each printed month, August through June."""
         out = []
-        for i in range(12):
+        for i in range(MONTH_COUNT):
             month = (FIRST_MONTH - 1 + i) % 12 + 1
             year = self.start_year + (1 if month < FIRST_MONTH else 0)
             out.append((year, month))
