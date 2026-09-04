@@ -209,6 +209,32 @@ def test_dates_outside_the_printed_year_are_rejected(tmp_path):
     assert "outside" in str(caught.value)
 
 
+def test_a_july_last_day_says_why_july_is_missing(tmp_path):
+    """The one out-of-span date that is not a copied-forward mistake.
+
+    A school year that genuinely runs into July -- a fortnight of snow days --
+    is rejected like any other date past the end of the grid, and everywhere
+    else in this project a year roll is data only. So this message has to say
+    that July is a deliberate omission and name the constant that undoes it,
+    or the person holding a real July last_day has nothing to go on.
+    """
+    d = write_year(tmp_path, 'early_release_start = 2026-09-09\nlast_day = 2027-07-06\n')
+    with pytest.raises(ValueError) as caught:
+        sy.load(d, 2026)
+    message = str(caught.value)
+    assert "July is left off the page on purpose" in message
+    assert "MONTH_COUNT" in message
+
+
+def test_an_ordinary_out_of_span_date_gets_no_july_hint(tmp_path):
+    """A date left over from another year is a typo, not a long school year;
+    pointing at MONTH_COUNT would send the reader to change the wrong thing."""
+    d = write_year(tmp_path, 'early_release_start = 2026-09-09\nlast_day = 2030-06-16\n')
+    with pytest.raises(ValueError) as caught:
+        sy.load(d, 2026)
+    assert "MONTH_COUNT" not in str(caught.value)
+
+
 # --- the accented header ---------------------------------------------------
 
 @pytest.mark.parametrize("org,expected", [

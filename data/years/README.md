@@ -49,6 +49,14 @@ students and are kept.
    previous year are rejected with a message saying so, rather than quietly
    drawing nothing.
 
+   The one limit worth knowing before you hit it: the grid runs **August to
+   June**, so a `last_day` in July is rejected. LWSD has never needed one --
+   it would take about a fortnight of snow days -- but if it ever happens, that
+   is the single case where a year roll needs a code change, and it is a
+   one-line one: `MONTH_COUNT` in `python/calendar_gen/school_year.py`. The
+   error message names it. Twelve months fills the 3x4 grid exactly; at eleven
+   the last row is short by one, which is where the dates list sits.
+
    Nothing validates the header, so unlike these three a stale one fails
    silently. Do it first.
 

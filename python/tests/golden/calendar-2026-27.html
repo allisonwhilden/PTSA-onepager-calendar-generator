@@ -9,7 +9,6 @@
 <body>
   
 <div class="page-wrapper">
-  <div class="page-main">
   <header class="topbar">
     <div class="title">Horace Mann <span class="accent">PTSA</span> | 2026-27 Calendar</div>
     <div class="logo-area"></div>
@@ -2734,8 +2733,6 @@
     </table>
   </section>
 
-  </div>
-
   <footer class="page-footer">
     <span>Updated Jan 15, 2026</span>
     <span class="separator">|</span>
@@ -2752,7 +2749,26 @@
 /* LWSD one-page calendar - Compact Single-Page Design */
 @page {
   size: Letter;
-  margin: 18pt; /* 0.25 inch margins - tighter for single-page fit */
+
+  /* A deeper bottom margin to hold the footer. It is drawn in this margin box,
+     not in the flow, which is the only way to put it on the page edge without
+     breaking pagination -- see .page-wrapper. The extra 14pt is roughly what
+     the footer used to occupy in the flow, so the content area is about where
+     it was. 26pt rather than 24pt: vertical-align:top puts the text at the top
+     of the band, and at 24pt its descenders land 0.235in from the paper edge --
+     inside the 0.25in this page otherwise keeps clear, and inside what some
+     printers clip. At 26pt it is 0.265in. The two spare dates that costs come
+     back off the topbar. */
+  margin: 18pt 18pt 26pt 18pt;
+
+  @bottom-center {
+    content: string(page-footer);
+    font-family: Arial, sans-serif;
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #444;
+    vertical-align: top;
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2765,40 +2781,22 @@ html, body {
 
 /* Main wrapper - prevents page breaks inside.
 
-   A flex column the full height of the page area, so the footer can be pushed
-   to the bottom with margin-top:auto rather than floating just under the dates
-   list with an inch of paper below it. Deliberately not position:fixed --
-   out of flow, the list could grow underneath the footer and overlap it, and
-   the one-page guard would not see that. */
+   Plain block flow, deliberately. A flex column with flex:1 on the content did
+   put the footer on the page edge, but a flex container does not fragment: when
+   the dates list outgrew the page the box simply overflowed and WeasyPrint went
+   on reporting one page, so --check, count_pages and
+   test_calendar_is_exactly_one_page all passed while ink printed 17pt below the
+   printable area, inside the margin a printer may clip. The one-page promise is
+   the product; the footer is not worth breaking it for.
+
+   The footer sits in the @page bottom margin box instead. Margin boxes are
+   outside the flow by construction, so the content area shrinks to make room
+   and normal pagination is untouched. */
 .page-wrapper {
   page-break-inside: avoid;
   break-inside: avoid;
-  display: flex;
-  flex-direction: column;
-
 }
 
-/* Everything above the footer. `flex: 1` makes it absorb the leftover height of
-   the page, which is what pushes the footer onto the bottom edge instead of
-   leaving it under the dates list with an inch of paper below.
-
-   These two rules -- display:flex here and flex:1 there -- are the whole
-   mechanism, and both are load-bearing: drop either and the footer floats 55pt
-   up the page. Three things that look like they would do this job do not, and
-   all three fail silently:
-
-     min-height: 100%   computes to auto (body has no definite height)
-     min-height: calc() computes to auto in WeasyPrint 61.2
-     margin-top: auto   computes, then resolves to 0 on the flex item
-
-   An explicit min-height on this wrapper is not needed either -- measured, the
-   footer lands identically with it set to 756pt or to 0. Guarded by
-   test_the_footer_sits_at_the_bottom_of_the_page. Deliberately not
-   position:fixed: out of flow, the dates list could grow underneath the footer
-   and overlap it, and the one-page guard would not see that. */
-.page-main {
-  flex: 1;
-}
 
 /* Header - Modern minimal design */
 .topbar {
@@ -2806,8 +2804,8 @@ html, body {
   justify-content: space-between;
   align-items: center;
   background: transparent;
-  padding: 3pt 0 5pt 0;
-  margin-bottom: 5pt;
+  padding: 2pt 0 3pt 0;
+  margin-bottom: 4pt;
 }
 .topbar .title {
   font-size: 12pt;
@@ -3202,22 +3200,26 @@ html, body {
   color: #C40A0C;
 }
 
-/* Footer */
+/* Footer.
+
+   The element stays in the document, but only to carry its text into the
+   @page bottom-center box above via string-set: WeasyPrint sets the string from
+   the rendered element, and `display: none` leaves it unset. Zero height and
+   hidden, so it takes no space and paints nothing here. */
+/* Not the footer you see -- that is drawn in the @page bottom-center margin
+   box at the top of this file. This element only carries the text: string-set
+   needs a real element to copy from, and content() takes its text and nothing
+   else, so the whole rule set that used to style these spans (margins around
+   the separators, a lighter colour on the pipes) had no effect on the printed
+   page and is gone. The spacing around the "|" comes from the whitespace in
+   the template.
+
+   Hidden and zero-height rather than display:none, which leaves the string
+   unset and the margin box empty -- measured, not assumed. Guarded by
+   test_the_footer_prints_below_the_content. */
 .page-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 6.5pt;
-  font-weight: 700;
-  color: #444;
-  padding-top: 4pt;
-  padding-bottom: 2pt;
-  margin-top: 3pt;
-}
-.page-footer span {
-  margin: 0 6pt;
-}
-.page-footer .separator {
-  color: #777;
-  margin: 0 2pt;
+  string-set: page-footer content();
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }

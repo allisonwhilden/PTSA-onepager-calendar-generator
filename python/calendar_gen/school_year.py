@@ -260,18 +260,33 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
             f"last_day ({year.last_day}), so no Wednesday would be marked"
         )
     span = (year.first_printed_day, year.last_printed_day)
+
+    def _outside(value: dt.date) -> str:
+        """The trailing half of an out-of-span message, with a hint if it fits.
+
+        The grid stops at the end of June. A date that lands in July is not a
+        typo -- it is a school year that ran longer than this page can show, and
+        the person reading the error needs to know the fix is one constant, not
+        a mystery. Everything else really is a copied-forward config.
+        """
+        if value.month == 7:
+            return (f"which stops at the end of June ({span[1]}). July is left "
+                    f"off the page on purpose -- see MONTH_COUNT in "
+                    f"{Path(__file__).name}")
+        return f"which covers {span[0]} to {span[1]}"
+
     for key, value in (("early_release_start", year.early_release_start),
                        ("last_day", year.last_day)):
         if not span[0] <= value <= span[1]:
             problems.append(
                 f"[dates] {key} ({value}) is outside the {year.label} calendar, "
-                f"which covers {span[0]} to {span[1]}"
+                f"{_outside(value)}"
             )
     for value in sorted(year.boxed_days):
         if not span[0] <= value <= span[1]:
             problems.append(
                 f"[dates] boxed_days entry {value} is outside the {year.label} "
-                f"calendar ({span[0]} to {span[1]}), so no box would be drawn"
+                f"calendar, {_outside(value)}, so no box would be drawn"
             )
 
     if problems:

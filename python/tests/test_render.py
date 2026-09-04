@@ -350,7 +350,8 @@ def test_page_is_us_letter(built_pdf):
 def test_the_page_is_not_empty(rendered_html, shipped_events):
     """Guards against the one-page test passing vacuously on an empty grid."""
     assert shipped_events, "no events in the shipped CSV"
-    assert rendered_html.count("<td class=\"day") > 300  # 12 months x 42 cells
+    cells = school_year.MONTH_COUNT * layout.CELLS_PER_MONTH
+    assert rendered_html.count("<td class=\"day") == cells
     assert "date-item" in rendered_html
 
 
@@ -473,18 +474,24 @@ def test_marks_on_a_no_school_cell_are_visible(stress_page):
     span, cell = _marked_span(stress_page.pages[0])
 
     cell_rgb = _over(cell.style["background_color"])
-    assert _luminance(cell_rgb) < 0.2, (
+    assert _luminance(cell_rgb) < 0.05, (
         f"expected a black no-school cell to test against, got {cell_rgb}")
 
     marks = {"border": span.style["border_top_color"]}
     if span.style["outline_width"]:
         marks["outline"] = span.style["outline_color"]
 
-    invisible = {name: tuple(round(c, 2) for c in _over(colour, cell_rgb))
-                 for name, colour in marks.items()
-                 if _luminance(_over(colour, cell_rgb)) < 0.5}
-    assert not invisible, (
-        f"drawn dark on a black no-school cell, so invisible: {invisible}")
+    # Measured as contrast against the cell, not as an absolute luminance.
+    # _luminance became gamma-decoded when it was lifted out of this test into a
+    # shared helper, which silently moved both thresholds it used to feed: the
+    # "is this really a black cell?" line started accepting #666, and the
+    # invisibility line started flagging marks that had passed. A ratio does not
+    # drift with the scale.
+    faint = {name: round(_contrast(_over(colour, cell_rgb), cell_rgb), 2)
+             for name, colour in marks.items()
+             if _contrast(_over(colour, cell_rgb), cell_rgb) < 4.5}
+    assert not faint, (
+        f"drawn too dark to see on a black no-school cell: {faint}")
 
 
 def test_every_day_number_is_legible_on_its_cell(laid_out):
@@ -505,7 +512,7 @@ def test_every_day_number_is_legible_on_its_cell(laid_out):
     Cells are taken one per element, outermost first. WeasyPrint wraps cell
     content in anonymous LineBox and TextBox boxes that also report element_tag
     "td"; and filtering on `background is not None` -- which an earlier version
-    did to skip them -- silently dropped every unfilled cell, which is all 315
+    did to skip them -- silently dropped every unfilled cell, including all 96
     weekend days, leaving the test vacuous and green.
     """
     faint = []
@@ -516,13 +523,17 @@ def test_every_day_number_is_legible_on_its_cell(laid_out):
         element = getattr(box, "element", None)
         if element is None or id(element) in seen:
             continue
-        seen.add(id(element))
         classes = set((element.get("class") or "").split())
         if "day" not in classes or "empty" in classes:
             continue
         text = "".join(t.text for t, _ in _boxes_of(box) if getattr(t, "text", None))
         if not text.strip():
             continue
+        # Counted here, after the filters, not before them: counting every td
+        # made the floor below pass on 464 cells while only 334 were checked,
+        # so the class or text filter could stop matching and this would stay
+        # green -- the exact vacuous pass it exists to prevent.
+        seen.add(id(element))
         cell_rgb = _over(box.style["background_color"])
         ink_rgb = _over(box.style["color"], cell_rgb)
         ratio = _contrast(ink_rgb, cell_rgb)
@@ -539,33 +550,123 @@ def test_every_day_number_is_legible_on_its_cell(laid_out):
     )
 
 
-def test_the_footer_sits_at_the_bottom_of_the_page(laid_out):
-    """The "Updated ..." line belongs on the bottom edge, not under the list.
+def _page_content_area(page):
+    """The root page box, the html box inside it, and the y they end at.
 
-    It is put there by exactly two declarations -- display:flex on
-    .page-wrapper and flex:1 on .page-main -- and removing either drops it 55pt
-    back up the page. Everything that looks like it would do the job instead
-    (min-height:100%, min-height:calc(), margin-top:auto on the footer) computes
-    away to nothing in this WeasyPrint and leaves the footer mid-page with the
-    suite green. That is why this is a test and not a comment.
+    Goes through _boxes rather than reaching for page._page_box directly, so a
+    WeasyPrint that stops exposing it skips these tests instead of erroring --
+    the private attribute is named in exactly one place on purpose.
+    """
+    boxes = list(_boxes(page))
+    root, _ = boxes[0]
+    html_box = next(b for b, _ in boxes
+                    if getattr(b, "element_tag", None) == "html")
+    return root, html_box, html_box.position_y + root.height
+
+
+def test_nothing_is_drawn_outside_the_printable_area(laid_out):
+    """The one-page test is not enough on its own, which cost us once.
+
+    Putting the footer on the page edge with a flex column did work, but a flex
+    container does not fragment: when the content outgrew the page the box just
+    overflowed, and WeasyPrint went on reporting one page. --check, count_pages
+    and test_calendar_is_exactly_one_page were all green while ink printed up to
+    17pt below the printable area, inside the margin a printer may clip. Page
+    count and page bounds are different promises and both need asserting.
+
+    Measured from border_box_y(), not position_y: position_y is the *margin* box
+    and this file has been caught by that difference twice.
     """
     page = laid_out.pages[0]
-    root = page._page_box
-    html_box = next(b for b, _ in _boxes(page)
-                    if getattr(b, "element_tag", None) == "html")
-    printable_bottom = html_box.position_y + root.height
+    root, html_box, limit = _page_content_area(page)
 
-    footers = [b for b, _ in _boxes(page)
-               if getattr(b, "element", None) is not None
-               and "page-footer" in (b.element.get("class") or "").split()]
-    assert footers, "no footer on the page"
-    bottom = max(f.position_y + f.border_height() for f in footers)
+    outside = []
+    for box, chain in _boxes(page):
+        # Page content only. The @page margin boxes are the one thing that is
+        # meant to live down there, and they hang off the page box, not off html.
+        if html_box not in chain:
+            continue
+        if getattr(box, "element", None) is None:
+            continue
+        try:
+            bottom = box.border_box_y() + box.border_height()
+        except (AttributeError, TypeError):  # pragma: no cover - text boxes
+            continue
+        if bottom - limit > 0.05:
+            tag = getattr(box, "element_tag", "?")
+            classes = (box.element.get("class") or "").strip()
+            outside.append((tag, classes, round((bottom - limit) / (96 / 72), 2)))
 
-    gap_pt = (printable_bottom - bottom) / (96 / 72)
-    assert -0.5 <= gap_pt <= 4, (
-        f"the footer ends {gap_pt:.1f}pt above the bottom of the printable "
-        f"area; it should sit on it"
+    assert not outside, (
+        f"{len(outside)} boxes are drawn past the bottom of the printable area "
+        f"(tag, class, pt over): {outside[:5]}"
     )
+
+
+def test_the_months_lay_out_three_to_a_row(laid_out):
+    """Three across, four rows down -- the shape the whole page is built on.
+
+    The months are inline-blocks at 32.5% with 1.25% gutters, which comes to
+    exactly 100.0% across a row: no slack at all. Anything that widens a month,
+    a gutter or the container by a fraction of a percent drops the third month
+    of every row onto its own line, and the page silently becomes two. Nothing
+    else here would notice -- the one-page test would fail, but only after the
+    layout had already collapsed, and it would not say why.
+    """
+    months = [b for b, _ in _boxes(laid_out.pages[0])
+              if getattr(b, "element", None) is not None
+              and "month" in (b.element.get("class") or "").split()]
+    assert len(months) == school_year.MONTH_COUNT, (
+        f"expected {school_year.MONTH_COUNT} months, found {len(months)}")
+
+    rows = {}
+    for box in months:
+        rows.setdefault(round(box.position_y, 1), []).append(box)
+    counts = [len(v) for _, v in sorted(rows.items())]
+
+    full, remainder = divmod(school_year.MONTH_COUNT, 3)
+    expected = [3] * full + ([remainder] if remainder else [])
+    assert counts == expected, (
+        f"months are laid out {counts} to a row, expected {expected}; "
+        f"the row width has no slack, so this is a wrapped grid"
+    )
+
+
+def test_the_footer_prints_below_the_content(laid_out):
+    """The "Updated ..." line belongs on the bottom edge of the page.
+
+    It is drawn in the @page bottom-center margin box, so it is not in the flow
+    at all -- the element that carries its text is zero-height and hidden, and
+    exists only for string-set. So this looks for the rendered text below the
+    content area rather than for a footer box inside it.
+    """
+    page = laid_out.pages[0]
+    root, html_box, limit = _page_content_area(page)
+
+    # The carrier element is still in the flow, hidden and zero-height, so the
+    # text turns up twice. The one that prints is the visible one.
+    printed = [t for t, _ in _boxes(page)
+               if getattr(t, "text", None) and t.text.startswith("Updated ")
+               and t.style["visibility"] == "visible"]
+    assert printed, (
+        "no visible footer on the page -- if string-set stopped resolving, "
+        "content() would leave the margin box empty and nothing else would fail"
+    )
+
+    text = printed[0]
+    assert text.position_y >= limit, (
+        f"the footer is drawn at y={text.position_y:.1f}, inside the content "
+        f"area that ends at {limit:.1f}; it should sit in the bottom margin"
+    )
+
+    # ...and far enough from the paper edge to survive an ordinary printer.
+    page_bottom = root.position_y + page.height
+    clearance = (page_bottom - (text.position_y + text.height)) / 96
+    assert clearance >= 0.2, (
+        f"the footer's descenders come within {clearance:.3f}in of the paper "
+        f"edge; the rest of the page keeps 0.25in clear"
+    )
+    assert "Calendar subject to change" in text.text
 
 
 def test_every_week_row_is_the_same_height(laid_out):
