@@ -551,17 +551,23 @@ def test_every_day_number_is_legible_on_its_cell(laid_out):
 
 
 def _page_content_area(page):
-    """The root page box, the html box inside it, and the y they end at.
+    """The html box, and the bottom and right edges the page may draw to.
 
     Goes through _boxes rather than reaching for page._page_box directly, so a
     WeasyPrint that stops exposing it skips these tests instead of erroring --
     the private attribute is named in exactly one place on purpose.
+
+    The bounds come off the page box, not off html: html happens to have no
+    margin here, but if it grew one its own position would move and this would
+    silently start measuring against the wrong edge.
     """
     boxes = list(_boxes(page))
     root, _ = boxes[0]
     html_box = next(b for b, _ in boxes
                     if getattr(b, "element_tag", None) == "html")
-    return root, html_box, html_box.position_y + root.height
+    return (html_box,
+            root.content_box_y() + root.height,   # bottom
+            root.content_box_x() + root.width)    # right
 
 
 def test_nothing_is_drawn_outside_the_printable_area(laid_out):
@@ -578,7 +584,7 @@ def test_nothing_is_drawn_outside_the_printable_area(laid_out):
     and this file has been caught by that difference twice.
     """
     page = laid_out.pages[0]
-    root, html_box, limit = _page_content_area(page)
+    html_box, bottom_limit, right_limit = _page_content_area(page)
 
     outside = []
     for box, chain in _boxes(page):
@@ -590,16 +596,19 @@ def test_nothing_is_drawn_outside_the_printable_area(laid_out):
             continue
         try:
             bottom = box.border_box_y() + box.border_height()
+            right = box.border_box_x() + box.border_width()
         except (AttributeError, TypeError):  # pragma: no cover - text boxes
             continue
-        if bottom - limit > 0.05:
+        over = max(bottom - bottom_limit, right - right_limit)
+        if over > 0.05:
+            edge = "bottom" if bottom - bottom_limit >= right - right_limit else "right"
             tag = getattr(box, "element_tag", "?")
             classes = (box.element.get("class") or "").strip()
-            outside.append((tag, classes, round((bottom - limit) / (96 / 72), 2)))
+            outside.append((tag, classes, edge, round(over / (96 / 72), 2)))
 
     assert not outside, (
-        f"{len(outside)} boxes are drawn past the bottom of the printable area "
-        f"(tag, class, pt over): {outside[:5]}"
+        f"{len(outside)} boxes are drawn past the edge of the printable area "
+        f"(tag, class, edge, pt over): {outside[:5]}"
     )
 
 
@@ -641,7 +650,7 @@ def test_the_footer_prints_below_the_content(laid_out):
     content area rather than for a footer box inside it.
     """
     page = laid_out.pages[0]
-    root, html_box, limit = _page_content_area(page)
+    _html_box, limit, _right = _page_content_area(page)
 
     # The carrier element is still in the flow, hidden and zero-height, so the
     # text turns up twice. The one that prints is the visible one.
@@ -660,8 +669,7 @@ def test_the_footer_prints_below_the_content(laid_out):
     )
 
     # ...and far enough from the paper edge to survive an ordinary printer.
-    page_bottom = root.position_y + page.height
-    clearance = (page_bottom - (text.position_y + text.height)) / 96
+    clearance = (page.height - (text.position_y + text.height)) / 96
     assert clearance >= 0.2, (
         f"the footer's descenders come within {clearance:.3f}in of the paper "
         f"edge; the rest of the page keeps 0.25in clear"
