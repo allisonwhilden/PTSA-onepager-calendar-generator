@@ -18,8 +18,12 @@ def _is_plain_date(value: object) -> bool:
     date-time through and it explodes on the first comparison."""
     return isinstance(value, dt.date) and not isinstance(value, dt.datetime)
 
-#: The calendar prints August through July, so the grid is a full 12 months.
+#: The calendar prints August through June: the school year, plus the August it
+#: starts in. July is left off -- nothing in a school year falls in it, and an
+#: empty month was spending a twelfth of the grid to say so. The months are
+#: therefore 3 + 3 + 3 + 2, with one empty slot at the end.
 FIRST_MONTH = 8
+MONTH_COUNT = 11
 WEDNESDAY = calendar.WEDNESDAY
 
 
@@ -63,8 +67,15 @@ class SchoolYear:
 
     @property
     def last_printed_day(self) -> dt.date:
-        end = dt.date(self.start_year + 1, FIRST_MONTH, 1)
-        return end - dt.timedelta(days=1)
+        """The last day of the last month the grid draws.
+
+        Derived from months() rather than stated on its own. These two decide
+        the same thing from opposite ends -- which dates get a cell, and which
+        get dropped as out-of-span notices -- so if they ever disagreed a date
+        could be listed with nowhere on the grid to point at.
+        """
+        year, month = self.months()[-1]
+        return dt.date(year, month, calendar.monthrange(year, month)[1])
 
     @property
     def header_parts(self) -> tuple[str, str]:
@@ -78,9 +89,9 @@ class SchoolYear:
         return self.organization, ""
 
     def months(self) -> list[tuple[int, int]]:
-        """(year, month) for each printed month, August through July."""
+        """(year, month) for each printed month, August through June."""
         out = []
-        for i in range(12):
+        for i in range(MONTH_COUNT):
             month = (FIRST_MONTH - 1 + i) % 12 + 1
             year = self.start_year + (1 if month < FIRST_MONTH else 0)
             out.append((year, month))
@@ -249,18 +260,33 @@ def load(years_dir: str | Path, start_year: int) -> SchoolYear:
             f"last_day ({year.last_day}), so no Wednesday would be marked"
         )
     span = (year.first_printed_day, year.last_printed_day)
+
+    def _outside(value: dt.date) -> str:
+        """The trailing half of an out-of-span message, with a hint if it fits.
+
+        The grid stops at the end of June. A date that lands in July is not a
+        typo -- it is a school year that ran longer than this page can show, and
+        the person reading the error needs to know the fix is one constant, not
+        a mystery. Everything else really is a copied-forward config.
+        """
+        if value.month == 7:
+            return (f"which stops at the end of June ({span[1]}). July is left "
+                    f"off the page on purpose -- see MONTH_COUNT in "
+                    f"{Path(__file__).name}")
+        return f"which covers {span[0]} to {span[1]}"
+
     for key, value in (("early_release_start", year.early_release_start),
                        ("last_day", year.last_day)):
         if not span[0] <= value <= span[1]:
             problems.append(
                 f"[dates] {key} ({value}) is outside the {year.label} calendar, "
-                f"which covers {span[0]} to {span[1]}"
+                f"{_outside(value)}"
             )
     for value in sorted(year.boxed_days):
         if not span[0] <= value <= span[1]:
             problems.append(
                 f"[dates] boxed_days entry {value} is outside the {year.label} "
-                f"calendar ({span[0]} to {span[1]}), so no box would be drawn"
+                f"calendar, {_outside(value)}, so no box would be drawn"
             )
 
     if problems:

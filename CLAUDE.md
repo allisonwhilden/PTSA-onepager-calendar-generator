@@ -38,7 +38,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV and the one-page fit
 python python/build.py --year 2026
-pytest                            # 107 tests, ~4s
+pytest                            # 113 tests, ~3s
 ```
 
 `build.py` runs from any directory; if it ever needs a `cd` first, that's
@@ -90,8 +90,12 @@ Review that diff before committing. It is the only review the printed page gets.
 - **Repeat events fold together** in the dates list, grouped by label. This is
   deliberate — the page is tight.
 
-- **The calendar prints August through July**, twelve months, so the grid is a
-  full 3×4. Rows outside that span are reported as *notices* and dropped —
+- **The calendar prints August through June** — the school year plus the August
+  it starts in. Eleven months, so the grid is 3 + 3 + 3 + 2 with one empty slot.
+  July is deliberately off: nothing in a school year falls in it. `MONTH_COUNT`
+  in `school_year.py` is the single source for this, and `last_printed_day` is
+  derived from it so the drawn months and the dropped-date span cannot drift.
+  Rows outside that span are reported as *notices* and dropped —
   deliberately not warnings, so `--strict` does not fail the build when you
   stage next year's dates early or leave last year's in place.
 

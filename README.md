@@ -90,7 +90,7 @@ From the repo root:
 pytest
 ```
 
-107 tests covering type resolution, CSV validation, config validation, grid
+113 tests covering type resolution, CSV validation, config validation, grid
 construction, early-release marking, date consolidation and year selection —
 plus a golden snapshot of the rendered page and of the stylesheet that paints
 it, geometry checks that every week row is the same height and that no mark

@@ -2616,243 +2616,6 @@
       </table>
     </article>
     
-    <article class="month">
-      <header>July 2027</header>
-      <table class="month-grid" aria-hidden="true">
-        <thead>
-          <tr class="dow">
-            <th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th>
-          </tr>
-        </thead>
-        <tbody>
-          
-          <tr>
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day">1
-                </td>
-              
-            
-              
-                <td class="day">2
-                </td>
-              
-            
-              
-                <td class="day weekend">3
-                </td>
-              
-            
-          </tr>
-          
-          <tr>
-            
-              
-                <td class="day weekend">4
-                </td>
-              
-            
-              
-                <td class="day">5
-                </td>
-              
-            
-              
-                <td class="day">6
-                </td>
-              
-            
-              
-                <td class="day">7
-                </td>
-              
-            
-              
-                <td class="day">8
-                </td>
-              
-            
-              
-                <td class="day">9
-                </td>
-              
-            
-              
-                <td class="day weekend">10
-                </td>
-              
-            
-          </tr>
-          
-          <tr>
-            
-              
-                <td class="day weekend">11
-                </td>
-              
-            
-              
-                <td class="day">12
-                </td>
-              
-            
-              
-                <td class="day">13
-                </td>
-              
-            
-              
-                <td class="day">14
-                </td>
-              
-            
-              
-                <td class="day">15
-                </td>
-              
-            
-              
-                <td class="day">16
-                </td>
-              
-            
-              
-                <td class="day weekend">17
-                </td>
-              
-            
-          </tr>
-          
-          <tr>
-            
-              
-                <td class="day weekend">18
-                </td>
-              
-            
-              
-                <td class="day">19
-                </td>
-              
-            
-              
-                <td class="day">20
-                </td>
-              
-            
-              
-                <td class="day">21
-                </td>
-              
-            
-              
-                <td class="day">22
-                </td>
-              
-            
-              
-                <td class="day">23
-                </td>
-              
-            
-              
-                <td class="day weekend">24
-                </td>
-              
-            
-          </tr>
-          
-          <tr>
-            
-              
-                <td class="day weekend">25
-                </td>
-              
-            
-              
-                <td class="day">26
-                </td>
-              
-            
-              
-                <td class="day">27
-                </td>
-              
-            
-              
-                <td class="day">28
-                </td>
-              
-            
-              
-                <td class="day">29
-                </td>
-              
-            
-              
-                <td class="day">30
-                </td>
-              
-            
-              
-                <td class="day weekend">31
-                </td>
-              
-            
-          </tr>
-          
-          <tr>
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-              
-                <td class="day empty"></td>
-              
-            
-          </tr>
-          
-        </tbody>
-      </table>
-    </article>
-    
   </section>
 
   <section class="legend-bar">
@@ -2986,7 +2749,26 @@
 /* LWSD one-page calendar - Compact Single-Page Design */
 @page {
   size: Letter;
-  margin: 18pt; /* 0.25 inch margins - tighter for single-page fit */
+
+  /* A deeper bottom margin to hold the footer. It is drawn in this margin box,
+     not in the flow, which is the only way to put it on the page edge without
+     breaking pagination -- see .page-wrapper. The extra 14pt is roughly what
+     the footer used to occupy in the flow, so the content area is about where
+     it was. 26pt rather than 24pt: vertical-align:top puts the text at the top
+     of the band, and at 24pt its descenders land 0.235in from the paper edge --
+     inside the 0.25in this page otherwise keeps clear, and inside what some
+     printers clip. At 26pt it is 0.265in. The two spare dates that costs come
+     back off the topbar. */
+  margin: 18pt 18pt 26pt 18pt;
+
+  @bottom-center {
+    content: string(page-footer);
+    font-family: Arial, sans-serif;
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #444;
+    vertical-align: top;
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2997,11 +2779,24 @@ html, body {
   line-height: 1.1;
 }
 
-/* Main wrapper - prevents page breaks inside */
+/* Main wrapper - prevents page breaks inside.
+
+   Plain block flow, deliberately. A flex column with flex:1 on the content did
+   put the footer on the page edge, but a flex container does not fragment: when
+   the dates list outgrew the page the box simply overflowed and WeasyPrint went
+   on reporting one page, so --check, count_pages and
+   test_calendar_is_exactly_one_page all passed while ink printed 17pt below the
+   printable area, inside the margin a printer may clip. The one-page promise is
+   the product; the footer is not worth breaking it for.
+
+   The footer sits in the @page bottom margin box instead. Margin boxes are
+   outside the flow by construction, so the content area shrinks to make room
+   and normal pagination is untouched. */
 .page-wrapper {
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
 
 /* Header - Modern minimal design */
 .topbar {
@@ -3009,8 +2804,8 @@ html, body {
   justify-content: space-between;
   align-items: center;
   background: transparent;
-  padding: 6pt 0 8pt 0;
-  margin-bottom: 8pt;
+  padding: 2pt 0 3pt 0;
+  margin-bottom: 4pt;
 }
 .topbar .title {
   font-size: 12pt;
@@ -3028,25 +2823,35 @@ html, body {
 
 /* Month grid - flexbox with balanced spacing */
 .year-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 4pt;
+  /* Not flex: WeasyPrint 61.2 ignores justify-content, so a partial last row
+     was spread edge to edge -- with July gone, May sat in column 1 and June in
+     column 3 with a hole between them. Inline-blocks simply fill from the left,
+     which puts the empty slot at the end where it belongs. */
+  font-size: 0;            /* swallow the whitespace between inline-blocks */
+  margin-bottom: 2pt;
 }
 
 /* Individual month - exactly 1/3 width minus gaps */
 .month {
+  display: inline-block;
+  vertical-align: top;
+  font-size: 8pt;          /* restore inside the month; .year-grid zeroes it */
   width: 32.5%;
-  margin-bottom: 6pt;
+  margin-right: 1.25%;
+  margin-bottom: 8pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
+.month:nth-child(3n) {
+  margin-right: 0;
+}
+
 .month header {
   font-weight: 700;
-  font-size: 8pt;
+  font-size: 8.5pt;
   text-align: center;
-  margin-bottom: 2pt;
-  padding: 2pt 4pt;
+  margin-bottom: 1pt;
+  padding: 1pt 4pt;
   letter-spacing: 0.02em;
 }
 
@@ -3055,23 +2860,39 @@ html, body {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+
 }
+
+/* No separate frame. The outer edge is the outermost cells' own borders, which
+   is why every line on the grid is now one colour and one width.
+
+   There used to be an outline here because cell rules were repainting the rim:
+   under border-collapse a cell's border-color also wins the edges it shares
+   with the table's rim, so a lighter empty-cell colour and a lighter no-school
+   colour were bleeding into the frame. With a single colour there is nothing
+   left to leak, so the outline goes -- and with it the faint double edge it
+   drew just outside the cells. A lighter outer border was tried and reads as
+   exactly that double line. */
 .month-grid thead th {
-  font-size: 5.5pt;
-  padding: 2pt 0;
-  border-bottom: 0.5pt solid #ddd;
-  font-weight: 600;
+  font-size: 6.5pt;
+  padding: 1pt 0 3pt 0;
+  border-bottom: none;
+  font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-align: center;
-  color: #666;
+
+  /* Grey and unruled. At #333 with a 1pt rule under it this row had almost the
+     weight of the dates themselves and read as part of the grid; it is a key
+     you read once, so it recedes and the space below it does the separating. */
+  color: #6b6b6b;
 }
 .month-grid tbody td {
-  border: 0.5pt solid #ddd;
+  border: 0.75pt solid #777;
   text-align: center;
-  font-size: 6.5pt;
+  font-size: 8pt;
   padding: 1pt 0;
-  height: 11pt;
+  height: 12pt;
   vertical-align: middle;
 }
 
@@ -3082,19 +2903,31 @@ html, body {
   display: inline-block;
   font-weight: bold;
   line-height: 1;
-  font-size: 6pt;
+  font-size: 6.5pt;
   margin-right: 1pt;
 }
 
-/* Weekend days - subtle styling */
+/* Weekend days sit back from the school days: nobody is looking up a Saturday.
+   #8c8c8c is 3.4:1 -- deliberately below the 4.5:1 you would want for text that
+   has to be read, because these are reference, not content, and the whole point
+   is that the eye skips them.
+
+   Not lighter than this. The stylesheet started at #999 (2.8:1), which is a
+   large part of why the printed page read washed out, and light greys at this
+   size come off a laser as halftone dots that break up the digits.
+
+   Any fill wins over this colour -- see .day.mark-no_school below, which is
+   later at equal specificity, so a weekend that is also a closure keeps its
+   white numeral on black. Guarded by test_every_day_number_is_legible_on_its_cell. */
 .day.weekend {
-  color: #999;
+  color: #8c8c8c;
 }
 
 /* Event marking */
 .day.mark-no_school {
   background: #000;
   color: #fff;
+
 }
 
 .day.mark-half_day {
@@ -3142,13 +2975,21 @@ html, body {
       -> 10pt is the largest size that satisfies both: at 10.5pt and above the
          row grows again. Guarded by test_ptsa_circles_stay_inside_their_row.
 
-   Do not add `position: relative; top: ...` here to nudge the ring. A previous
-   attempt did, on a measurement that read WeasyPrint's position_y as the border
-   box. It is the *margin* box, and margin-top is negative here, so the ring was
-   really 0.59px high of its row -- the nudge caused the overhang it was meant
-   to correct. vertical-align: middle already centres it: 0.74px clear above,
-   0.59px below. */
+   The `top` below is a real correction, and the reason to be careful with it:
+   an earlier attempt at this was chosen from WeasyPrint's position_y, which is
+   the *margin* box, not the border box -- with a negative margin-top that
+   under-read the overhang and the nudge caused the overhang it meant to fix.
+   Measure from border_box_y(), as _spills() in the tests does.
+
+   Measured that way at an 8pt cell font, all 34 rings sat low: 2.04px of slack
+   above, 0.54px below, and the boxed-and-circled mark drew 0.04px outside the
+   row. vertical-align: middle centres the box on the parent's baseline plus
+   half its x-height, which is not the middle of the cell, and the gap grew with
+   the type. -0.5pt splits it: about 1.2px above and below on the plain ring,
+   0.7px and 0.6px on the combined mark. */
 .day.circle span {
+  position: relative;
+  top: -0.5pt;
   border: 1pt solid #C40A0C;
   border-radius: 50%;
   width: 10pt;
@@ -3158,7 +2999,7 @@ html, body {
   line-height: 8.5pt;
   text-align: center;
   padding: 0;
-  font-size: 6pt;
+  font-size: 6.5pt;
   margin-right: 1pt;
   vertical-align: middle;
   margin-top: -1pt;
@@ -3177,27 +3018,30 @@ html, body {
      proud of the week. Both dimensions are constrained, and they pull opposite
      ways:
 
-       height -- the row is 14.667px, and ring + outline must fit inside it.
-       width  -- the content box must still hold a bold two-digit date. At 6pt
-                 bold, "31" is 8.9px wide.
+       height -- the row is 16px, and ring + outline must fit inside it.
+       width  -- the content box must still hold a bold two-digit date. At
+                 6.5pt bold, "31" is 9.6px wide.
 
-     9.5pt of ring plus 2 x 0.5pt of outline is 14.575px of ink, clearing the
-     row by 0.09px, and leaves a 10px content box for those 8.9px of digits.
+     The week row is 16px (a 12pt cell). 10pt of ring plus 2 x 0.5pt of
+     outline is 14.67px of ink, and leaves a 10.67px content box for a 9.6px
+     bold date -- 1.03px of slack, up from 0.36px when the ring was 9.5pt.
+     A 0.75pt outline at this diameter spills the row; the sweep is in the
+     commit message.
 
-     Shrinking the ring instead of thinning the box is what went wrong the first
-     time: at 9pt with 0.5pt of padding the content box was 8.0px, so the date
-     overran its own ring on both sides -- an invisible 0.4px row overhang
-     traded for a visible collision. There is no padding now: box-sizing is
-     border-box, so padding only eats the content box. It never separated the
-     border from the outline, which is what the comment here used to claim.
+     Shrinking the ring instead is what went wrong the first time: at 9pt with
+     0.5pt of padding the content box was 8.0px and the date overran its own
+     ring on both sides -- an invisible row overhang traded for a visible
+     collision. There is no padding now: box-sizing is border-box, so padding
+     only eats the content box. It never separated the border from the outline,
+     which is what the comment here used to claim.
 
      No day in the shipped CSV is both boxed and circled, so none of this shows
      on today's page. test_a_day_carrying_every_mark_stays_inside_its_row and
      test_the_date_fits_inside_every_mark build that day on purpose. */
   outline: 0.5pt solid #000;
-  width: 9.5pt;
-  height: 9.5pt;
-  line-height: 8pt;
+  width: 10pt;
+  height: 10pt;
+  line-height: 8.5pt;
 }
 
 /* Every mark on a no-school cell is drawn white, because the cell is solid
@@ -3236,9 +3080,9 @@ html, body {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  padding: 6pt 0;
-  margin: 4pt 0;
-  font-size: 6.5pt;
+  padding: 3pt 0;
+  margin: 2pt 0;
+  font-size: 7.5pt;
 }
 
 .legend-item {
@@ -3259,7 +3103,7 @@ html, body {
 .chip {
   width: 6pt;
   height: 6pt;
-  border: 0.5pt solid #000;
+  border: 0.6pt solid #000;
   display: inline-block;
   flex-shrink: 0;
 }
@@ -3281,7 +3125,7 @@ html, body {
 
 .symbol {
   font-weight: bold;
-  font-size: 7pt;
+  font-size: 7.5pt;
   display: inline-block;
   width: 6pt;
   text-align: center;
@@ -3290,10 +3134,10 @@ html, body {
 /* Legend demo icons */
 .legend-diamond {
   border: 0.75pt solid #000;
-  padding: 0 1pt;
+  padding: 0 1.5pt;
   display: inline-block;
   font-weight: bold;
-  font-size: 5pt;
+  font-size: 6.5pt;
   line-height: 1;
 }
 .legend-circle {
@@ -3305,7 +3149,7 @@ html, body {
   text-align: center;
   display: inline-block;
   font-weight: normal;
-  font-size: 5pt;
+  font-size: 6.5pt;
 }
 .bold-demo {
   font-weight: 900;
@@ -3315,7 +3159,7 @@ html, body {
 /* Important Dates - Table-based for WeasyPrint compatibility */
 .important {
   width: 100%;
-  padding-top: 4pt;
+  padding-top: 2pt;
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -3324,7 +3168,7 @@ html, body {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 6.5pt;
+  font-size: 8pt;
   line-height: 1.2;
 }
 .important-dates-table td {
@@ -3332,8 +3176,11 @@ html, body {
   padding: 0 8pt;
   width: 50%;
 }
+/* 0.5pt, not 1pt: the type went 6.5pt -> 7.5pt and the leading is doing the
+   separating now. This is also what buys the growth headroom back -- 22 list
+   rows at 1pt of vertical padding each was costing more than the font did. */
 .important-dates-table .date-item {
-  padding: 1pt 2pt;
+  padding: 0.5pt 2pt;
   break-inside: avoid;
 }
 .important-dates-table .date-item b {
@@ -3343,7 +3190,7 @@ html, body {
 
 /* District events styling */
 .important-dates-table .district-event {
-  color: #555;
+  color: #222;
 }
 
 /* PTSA events styling with accent */
@@ -3353,20 +3200,26 @@ html, body {
   color: #C40A0C;
 }
 
-/* Footer */
+/* Footer.
+
+   The element stays in the document, but only to carry its text into the
+   @page bottom-center box above via string-set: WeasyPrint sets the string from
+   the rendered element, and `display: none` leaves it unset. Zero height and
+   hidden, so it takes no space and paints nothing here. */
+/* Not the footer you see -- that is drawn in the @page bottom-center margin
+   box at the top of this file. This element only carries the text: string-set
+   needs a real element to copy from, and content() takes its text and nothing
+   else, so the whole rule set that used to style these spans (margins around
+   the separators, a lighter colour on the pipes) had no effect on the printed
+   page and is gone. The spacing around the "|" comes from the whitespace in
+   the template.
+
+   Hidden and zero-height rather than display:none, which leaves the string
+   unset and the margin box empty -- measured, not assumed. Guarded by
+   test_the_footer_prints_below_the_content. */
 .page-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 5.5pt;
-  color: #888;
-  padding-top: 6pt;
-  margin-top: 6pt;
-}
-.page-footer span {
-  margin: 0 6pt;
-}
-.page-footer .separator {
-  color: #aaa;
-  margin: 0 2pt;
+  string-set: page-footer content();
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }
