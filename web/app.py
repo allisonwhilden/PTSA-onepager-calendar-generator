@@ -55,6 +55,13 @@ def safe_next(target: str | None) -> str:
     """
     if not target or not target.startswith("/") or target.startswith("//"):
         return "/"
+    # Backslashes and control characters go too. Browsers normalise "\" to "/"
+    # inside a URL, so "/\evil.example" is delivered as "//evil.example" -- a
+    # protocol-relative URL to somebody else's host, straight through a check
+    # that only looked for a doubled forward slash. A control character in a
+    # redirect has no business being there either.
+    if "\\" in target or any(c < " " or c == "\x7f" for c in target):
+        return "/"
     return target
 
 

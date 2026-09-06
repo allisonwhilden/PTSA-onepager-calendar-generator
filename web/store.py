@@ -48,6 +48,15 @@ BOT_NAME = "PTSA Calendar Editor"
 BOT_EMAIL = "calendar-editor@users.noreply.github.com"
 
 
+#: A commit id and nothing else. Version ids arrive from the URL path and go
+#: straight into git arguments, where a leading "-" is an option rather than a
+#: revision. Nothing bad was reachable through it -- git rejected the ones I
+#: tried -- but that is git's behaviour protecting us rather than ours, and
+#: `..` was accepted as a revision range. Anchoring the shape here means the
+#: question never reaches git at all.
+SHA = re.compile(r"\A[0-9a-f]{7,40}\Z")
+
+
 class StoreError(Exception):
     """Something went wrong talking to git. Message is safe to show a user."""
 
@@ -219,7 +228,14 @@ class Store:
 
     def rows_at(self, sha: str) -> list[Row]:
         from .csvio import parse
-        return parse(self._git("show", f"{sha}:{CSV_PATH}"))
+        return parse(self._git("show", f"{self._version(sha)}:{CSV_PATH}"))
+
+    @staticmethod
+    def _version(sha: str) -> str:
+        """A version id, or a refusal. Never anything git could read as a flag."""
+        if not SHA.match(sha or ""):
+            raise StoreError(f"No such version: {(sha or '')[:12]}")
+        return sha
 
     def has_unpublished_changes(self) -> bool:
         """True when the draft differs from what is published.
@@ -413,9 +429,10 @@ class Store:
         """
         with self.lock:
             self.sync()
+            sha = self._version(sha)
             try:
-                when = self._git("show", "-s", "--format=%aI", sha)
-                subject = self._git("show", "-s", "--format=%s", sha)
+                when = self._git("show", "-s", "--format=%aI", sha, "--")
+                subject = self._git("show", "-s", "--format=%s", sha, "--")
             except StoreError as exc:
                 raise StoreError(f"No such version: {sha[:8]}") from exc
             # Remove first, then restore. `git checkout <sha> -- data` only

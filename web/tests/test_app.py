@@ -489,6 +489,12 @@ def test_an_alias_type_is_shown_by_what_it_does_and_not_rewritten(signed_in, sto
     ("/history", "/history"),
     ("https://evil.example/phish", "/"),
     ("//evil.example/phish", "/"),          # protocol-relative, not a path
+    # Browsers normalise "\" to "/" inside a URL, so this is delivered as
+    # "//evil.example" -- the same redirect, straight through a check that only
+    # looked for a doubled forward slash.
+    ("/\\evil.example/phish", "/"),
+    ("/\\/evil.example", "/"),
+    ("/a\r\nSet-Cookie: x=1", "/"),
     ("", "/"),
     (None, "/"),
 ])

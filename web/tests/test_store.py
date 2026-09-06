@@ -327,3 +327,37 @@ def test_a_restart_picks_the_draft_back_up(store, remote, tmp_path):
     restarted = Store.clone(str(remote), tmp_path / "after-restart")
     assert any(r.label == "Winter Social" for r in restarted.rows())
     assert restarted.has_unpublished_changes() is True
+
+
+@pytest.mark.parametrize("probe", [
+    "--help", "-h", "--output=/tmp/canary", "--upload-pack=touch /tmp/pwned",
+    "..", "HEAD", "main", "", "deadbeef!", "../../etc/passwd",
+])
+def test_a_version_id_that_is_not_one_never_reaches_git(store, probe):
+    """Version ids arrive from the URL path and become git arguments, where a
+    leading "-" is an option rather than a revision.
+
+    Nothing harmful was reachable through it -- git rejected the flags I tried
+    -- but that was git's behaviour protecting us rather than ours, and `..`
+    was accepted as a revision range. Refusing anything that is not a commit id
+    means the question never reaches git.
+    """
+    with pytest.raises(StoreError) as caught:
+        store.rows_at(probe)
+    assert "No such version" in str(caught.value)
+
+    with pytest.raises(StoreError):
+        store.restore(probe, "Allison")
+
+
+def test_a_real_version_id_still_works(store):
+    """The guard has to let the actual thing through."""
+    rows = store.rows()
+    rows.append(csvio.Row(date="2400-12-05", type="ptsa_event", label="Winter Social"))
+    first = store.head()
+    store.save(rows, "Allison", "added Winter Social")
+
+    assert [r.label for r in store.rows_at(first)] != \
+           [r.label for r in store.rows()]
+    store.restore(first, "Allison")
+    assert not any(r.label == "Winter Social" for r in store.rows())

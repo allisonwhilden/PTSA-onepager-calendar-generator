@@ -65,7 +65,7 @@ jobs:
 
       - name: Test
         # No path argument: naming one here overrides pytest.ini's testpaths,
-        # which is how the editor's 119 tests were collected by nobody.
+        # which is how the editor's 133 tests were collected by nobody.
         run: python -m pytest
 
       # The filename carries the school year, which build.py derives from the
