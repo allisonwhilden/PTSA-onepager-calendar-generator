@@ -71,9 +71,12 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     app.state.store = store or _store_from_env()
     app.state.auth = auth or Auth.from_env()
     app.state.limiter = LoginRateLimit()
-    #: (sha, Build | None, error | None) for the last commit built. One entry:
-    #: everyone is looking at the same draft.
-    app.state.build_cache = None
+    #: {(sha, year): (Build | None, error | None)}. Keyed by year as well as
+    #: commit: with two years configured, one slot meant two people looking at
+    #: two years evicted each other on every request and each paid the ~0.75s
+    #: layout the cache exists to avoid. Cleared wholesale when the draft
+    #: moves, which is what keeps it from serving a stale page.
+    app.state.build_cache = {}
     # Cookies go out Secure unless told otherwise, so a misconfigured proxy
     # cannot quietly downgrade the session to plain HTTP. Tests and local
     # development set it to false explicitly.
@@ -186,16 +189,18 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         request with a fresh Build and an empty document cache.
         """
         sha = store.head()
-        key = (sha, year)
-        cached = app.state.build_cache
-        if cached and cached[0] == key:
-            return cached[1], cached[2], sha
+        cache = app.state.build_cache
+        if cache and next(iter(cache))[0] != sha:
+            cache.clear()          # the draft moved; every year is stale
+        if (sha, year) in cache:
+            built, error = cache[(sha, year)]
+            return built, error, sha
         try:
             built = pipeline.build(store.csv_path, store.years_dir, year)
             error = None
         except pipeline.Blocked as exc:
             built, error = None, str(exc)
-        app.state.build_cache = (key, built, error)
+        cache[(sha, year)] = (built, error)
         return built, error, sha
 
     def start_year_of(label: str | None) -> int | None:
@@ -224,18 +229,21 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
             name=sess.get("name", ""),
         )
 
-    def _organization(store: Store) -> str:
-        """The organization name, from whichever year config we can read.
+    def _organization(store: Store) -> str | None:
+        """The organization name from the existing config, or None.
 
-        Asked of the existing config rather than of the person: they have
-        already typed it into a config once, and a second spelling of "Horace
-        Mann PTSA" would print a different heading on next year's page.
+        Read rather than asked, so next year cannot end up with a second
+        spelling of "Horace Mann PTSA" heading its page. None when there is no
+        readable config: it used to fall back to the literal string "PTSA",
+        which printed a wrong name on the sheet families receive and named the
+        file after it -- a guess quietly becoming data, in the one flow whose
+        whole design is that guesses cannot.
         """
         try:
             year, _ = pipeline.load_year(store.years_dir)
             return year.organization
         except pipeline.Blocked:
-            return "PTSA"
+            return None
 
     def _pending_changes(store: Store) -> list:
         try:
@@ -263,7 +271,13 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
             return render(request, "error.html", message=str(exc),
                           status_code=500)
 
-        response = RedirectResponse("/", status_code=303)
+        # Back to the year they were editing. Landing on the published year
+        # after every save meant re-picking it each time, and the warnings
+        # panel they then read would be about a different year than the rows
+        # they had just changed.
+        year = (form.get("year") or "").strip()
+        response = RedirectResponse(f"/?year={year}" if year else "/",
+                                    status_code=303)
         if author:
             response.set_cookie(
                 COOKIE_NAME, app.state.auth.issue(author),
@@ -301,14 +315,32 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                      f'inline; filename="DRAFT-{build.filename}"'},
         )
 
+    def _blockers(store: Store):
+        """Everything wrong with any configured year, not just the live one.
+
+        Publishing pushes the whole CSV, and on 1 August the scheduled build
+        switches which year `calendar.pdf` means. A staged year that does not
+        build would sail past a gate that only ever looked at today's year, sit
+        on main with CI green, and then take the published calendar down on the
+        day it became current -- which is the eight-month staleness the whole
+        pipeline is written against, just delayed.
+        """
+        problems = []
+        for label in store.year_labels():
+            year = start_year_of(label)
+            build, error, _ = build_current(store, year)
+            if error:
+                problems.append(f"{label}: {error}")
+            else:
+                problems += [f"{label}: {p}" for p in build.publish_problems()]
+        return problems
+
     @app.get("/publish", response_class=HTMLResponse)
     def publish_form(request: Request, sess: dict = Depends(session)):
         store: Store = app.state.store
         store.sync()
         build, error, sha = build_current(store)
-        blockers = list(filter(None, [error]))
-        if build is not None:
-            blockers += build.publish_problems()
+        blockers = _blockers(store)
         return render(
             request, "publish.html",
             changes=_pending_changes(store),
@@ -336,9 +368,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                           message="Someone else saved while this page was open, "
                                   "so nothing has been published. Look at the "
                                   "changes again -- there are more of them now.")
-        blockers = list(filter(None, [error]))
-        if build is not None:
-            blockers += build.publish_problems()
+        blockers = _blockers(store)
         if blockers:
             # The last line of defence, not the first: the button is already
             # disabled. Someone with a stale page open must still not be able
@@ -346,7 +376,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
             return render(request, "publish.html", blockers=blockers,
                           changes=_pending_changes(store), build=build,
                           pending=store.has_unpublished_changes(),
-                          status_code=422)
+                          sha=checked, status_code=422)
         try:
             store.publish(expected=checked)
         except Conflict as exc:
@@ -425,14 +455,17 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                     ("the first early-release Wednesday", early_release_start))
                    if not value]
         if missing:
-            start = start_year
-            return render(request, "new-year.html", status_code=400,
-                          label=label, start_year=start,
-                          existing=store.year_labels(),
-                          suggested={"first_day": first_day,
-                                     "last_day": last_day,
-                                     "early_release_start": early_release_start},
-                          error=f"Please fill in {', and '.join(missing)}.")
+            return render(
+                request, "new-year.html", status_code=400,
+                label=label, start_year=start_year,
+                existing=store.year_labels(),
+                # Everything they typed, including the optional kindergarten
+                # date -- which used to be dropped here, and being optional is
+                # easy not to notice missing.
+                suggested={"first_day": first_day, "last_day": last_day,
+                           "early_release_start": early_release_start,
+                           "kindergarten_first_day": kindergarten_first_day},
+                error=f"Please fill in {', and '.join(missing)}.")
 
         previous = start_year - 1
         return render(
@@ -450,42 +483,82 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     async def new_year_create(request: Request, sess: dict = Depends(session)):
         store: Store = app.state.store
         form = await request.form()
-        start_year = int(form.get("start_year"))
-        label = newyear.label_for(start_year)
 
-        first_day = (form.get("first_day") or "").strip()
-        last_day = (form.get("last_day") or "").strip()
-        kinder = (form.get("kindergarten_first_day") or "").strip()
+        def fail(message: str, status: int = 400):
+            return render(request, "error.html", message=message,
+                          status_code=status)
+
+        # These arrive in hidden fields, and every one of them is interpolated
+        # into a TOML file that is then committed and pushed. An empty or
+        # malformed value used to produce `last_day = ` -- not parseable TOML
+        # at all -- in a year nothing could later fix.
+        try:
+            start_year = int(form.get("start_year") or "")
+        except (TypeError, ValueError):
+            return fail("That form was missing which school year to create. "
+                        "Start again from New year.")
+
+        dates = {}
+        for field in ("first_day", "last_day", "early_release_start",
+                      "kindergarten_first_day"):
+            raw = (form.get(field) or "").strip()
+            if not raw and field == "kindergarten_first_day":
+                dates[field] = ""
+                continue
+            try:
+                dates[field] = dt.date.fromisoformat(raw).isoformat()
+            except ValueError:
+                return fail(f"{raw or 'A date'} is not a date the calendar can "
+                            f"use. Go back and pick it from the date box.")
+
+        organization = _organization(store)
+        if organization is None:
+            return fail(
+                "There is no readable school-year config to take the "
+                "organization's name from, so the new year would be headed "
+                "with a guess. Fix the existing year first.", 409)
+
+        label = newyear.label_for(start_year)
+        first_day = dates["first_day"]
+        last_day = dates["last_day"]
+        kinder = dates["kindergarten_first_day"]
 
         config = newyear.config_toml(
-            organization=_organization(store),
-            label=label,
-            early_release_start=(form.get("early_release_start") or "").strip(),
+            organization=organization, label=label,
+            early_release_start=dates["early_release_start"],
             last_day=last_day,
             boxed_days=[d for d in (first_day, kinder, last_day) if d],
             source_label=newyear.label_for(start_year - 1),
         )
 
         carried = _rows_from_form(form)
-        # The two dates the config already names still have to be listed, or
-        # the page draws a box on a day with nothing beside it.
-        carried += [
-            csvio.Row(date=first_day, type="first_day",
-                      label="First Day (Grades 1-12)"),
-            csvio.Row(date=last_day, type="last_day",
-                      label="Last Day of School"),
-        ]
-        if kinder:
-            carried.append(csvio.Row(date=kinder, type="first_day",
-                                     label="First Day (Kindergarten)"))
+        # The two dates the config names still have to be listed, or the page
+        # draws a box on a day with nothing beside it. Skipped when the same
+        # event was already carried over: build_important_dates groups by label
+        # and unions the dates, so a duplicate prints as one event on two days
+        # ("8/30, 9/1  First Day") and earns a stray asterisk. Nothing in the
+        # validator catches that, so it has to not happen.
+        already = {(r.first_day, r.type) for r in carried}
+        for when, kind, name in ((first_day, "first_day", "First Day (Grades 1-12)"),
+                                 (kinder, "first_day", "First Day (Kindergarten)"),
+                                 (last_day, "last_day", "Last Day of School")):
+            if when and (when, kind) not in already:
+                carried.append(csvio.Row(date=when, type=kind, label=name))
+
+        def validate(csv_path, years_dir):
+            pipeline.build(csv_path, years_dir, start_year)
 
         try:
-            store.add_year(label, config, store.rows() + carried,
-                           sess.get("name", ""),
-                           f"started {label} with {len(carried)} dates")
+            store.add_year(label, config, carried, sess.get("name", ""),
+                           f"started {label} with {len(carried)} dates",
+                           validate=validate)
+        except pipeline.Blocked as exc:
+            # Nothing was committed. Say what is wrong with the dates rather
+            # than leaving a year behind that cannot be built or deleted.
+            return fail(f"Those dates do not make a calendar that can be "
+                        f"built, so {label} has not been created:\n\n{exc}")
         except StoreError as exc:
-            return render(request, "error.html", message=str(exc),
-                          status_code=409)
+            return fail(str(exc), 409)
         return RedirectResponse(f"/?year={label}", status_code=303)
 
     @app.get("/healthz")

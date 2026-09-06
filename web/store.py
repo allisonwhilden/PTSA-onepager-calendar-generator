@@ -246,13 +246,27 @@ class Store:
 
     # --- writing -----------------------------------------------------------
 
-    def add_year(self, label: str, config: str, rows: list[Row],
-                 author: str, summary: str) -> str:
+    def add_year(self, label: str, config: str, added: list[Row],
+                 author: str, summary: str,
+                 validate=None) -> str:
         """Write a new year's config alongside the existing ones, plus its rows.
 
         The config is added, never replacing another: the CSV holds every year
         at once and so does data/years, which is what lets next year be staged
         while this year is still the one being published.
+
+        Takes the rows to *add*, not the whole file. The caller cannot read the
+        existing rows first, because sync() below may replace them: passing
+        `store.rows() + new` meant a pre-sync snapshot was written over
+        somebody else's save, silently, with no conflict page and their change
+        simply gone from the CSV.
+
+        ``validate`` is called with the staged directory before anything is
+        committed. A config that does not load leaves a year the editor can
+        neither repair -- there is no page that edits a year config -- nor
+        recreate, since add_year refuses a label that exists and
+        next_year_after has already moved past it. The only remedy would be
+        editing git by hand, which is the thing this app exists to avoid.
         """
         with self.lock:
             self.sync()
@@ -263,7 +277,18 @@ class Store:
                     f"creating it again."
                 )
             path.write_text(config, encoding="utf-8")
-            write_rows(self.csv_path, rows)
+            write_rows(self.csv_path, read_rows(self.csv_path) + list(added))
+
+            if validate is not None:
+                try:
+                    validate(self.csv_path, self.years_dir)
+                except Exception:
+                    # Put the working tree back exactly as it was. Nothing has
+                    # been committed, so this is the whole cleanup.
+                    path.unlink(missing_ok=True)
+                    self._git("checkout", "--", CSV_PATH)
+                    raise
+
             return self._commit(author, summary)
 
     def year_labels(self) -> list[str]:

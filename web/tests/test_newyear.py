@@ -25,7 +25,6 @@ def test_a_suggestion_keeps_the_weekday():
     now = dt.date.fromisoformat(proposal.suggested.date)
     assert was.weekday() == now.weekday() == 3        # Thursday, both
     assert now.year == 2027
-    assert proposal.moved_weekday is False
 
 
 def test_a_date_range_is_shifted_at_both_ends():
@@ -34,6 +33,27 @@ def test_a_date_range_is_shifted_at_both_ends():
     [proposal] = newyear.propose(rows, 2026)
     assert proposal.suggested.start_date == "2027-11-25"
     assert proposal.suggested.end_date == "2027-11-26"
+
+
+def test_july_is_never_offered():
+    """The grid runs August to June, so a July row cannot be printed at all.
+
+    Offering one means a person ticks it, it is written, and it becomes a
+    permanent out-of-span notice on every future build. The window comes from
+    SchoolYear rather than being restated here, which is what CLAUDE.md means
+    by MONTH_COUNT being the single source for it.
+    """
+    rows = [Row(date="2026-07-20", type="ptsa_event", label="Summer picnic"),
+            Row(date="2026-08-20", type="ptsa_event", label="August thing")]
+    assert [p.label for p in newyear.propose(rows, 2026)] == ["August thing"]
+
+
+def test_the_label_rule_is_the_renderers_own():
+    """available_years only recognises a config file whose name matches
+    school_year.label_for. A second spelling here would write a .toml that the
+    renderer then refuses to see."""
+    from calendar_gen import school_year
+    assert newyear.label_for is school_year.label_for
 
 
 def test_only_last_year_is_offered():

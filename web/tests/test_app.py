@@ -679,8 +679,7 @@ def test_creating_a_year_writes_a_config_that_builds(signed_in, store):
     assert any("Curriculum Night" in d.label for d in built.important)
 
 
-def test_creating_a_year_does_not_disturb_the_published_one(signed_in, store,
-                                                            remote):
+def test_creating_a_year_does_not_disturb_the_published_one(signed_in, store):
     """Staging next year must leave this year's calendar exactly as it is --
     that is the whole point of being able to prepare it early."""
     from calendar_gen import pipeline
@@ -694,6 +693,34 @@ def test_creating_a_year_does_not_disturb_the_published_one(signed_in, store,
     after = pipeline.build(store.csv_path, store.years_dir, 2400)
     assert after.html == before, "staging next year changed this year's page"
     assert store.has_unpublished_changes() is True, "it published itself"
+
+
+def test_staging_next_year_does_not_steal_the_published_slot(tmp_path):
+    """Which calendar `calendar.pdf` means must not move because a year was
+    staged. Deliberately built with no year requested: naming one bypasses
+    resolve_start_year, the single piece of logic that decides this.
+
+    On real years, not the fixture's 2400 -- with no config for the year we are
+    actually in, resolve_start_year falls back to the newest one it has, which
+    is deliberate ("so the build keeps working in the gap") and would make this
+    look broken when it is not.
+    """
+    from calendar_gen import school_year
+
+    from web import newyear
+
+    this_year = school_year.current_start_year()
+    for start in (this_year, this_year + 1):
+        (tmp_path / f"{school_year.label_for(start)}.toml").write_text(
+            newyear.config_toml(
+                organization="T", label=school_year.label_for(start),
+                early_release_start=f"{start}-09-09",
+                last_day=f"{start + 1}-06-16",
+                boxed_days=[f"{start}-08-31", f"{start + 1}-06-16"]))
+
+    resolved, why = school_year.resolve_start_year(tmp_path)
+    assert resolved == this_year, (
+        f"staging {this_year + 1} moved the published year to {resolved} ({why})")
 
 
 def test_you_can_switch_to_editing_the_year_you_just_created(signed_in):
@@ -724,3 +751,143 @@ def test_a_year_that_already_exists_is_refused(signed_in, store):
 
 def test_the_new_year_needs_the_password(client):
     assert client.get("/new-year", follow_redirects=False).status_code == 303
+
+
+def test_a_year_whose_dates_do_not_build_is_not_created_at_all(signed_in, store):
+    """One mistyped year in a date box used to leave a year nothing could fix.
+
+    There is no page that edits a year config; add_year refuses a label that
+    already exists; next_year_after has moved past it; and restore cannot help
+    because `git checkout <sha> -- data` does not delete a file added since. The
+    only remedy was editing git by hand -- the thing the editor exists to avoid.
+    """
+    before = store.head()
+    response = signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        # 2401 rather than 2402: one keystroke, and the year cannot be built.
+        "last_day": "2401-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    assert response.status_code == 400
+    assert "has not been created" in response.text
+    assert store.head() == before, "it committed a year that cannot be built"
+    assert not (store.years_dir / "2401-02.toml").exists()
+    assert signed_in.get("/new-year").status_code == 200
+
+
+def test_the_boundary_dates_are_not_added_twice(signed_in, store):
+    """The first and last days are appended from the form, and are also on
+    offer in the carry-over list. Both would land the same event on two dates:
+    build_important_dates groups by label and unions them, so the page reads
+    "8/30, 9/1  First Day" and the extra day earns a stray asterisk."""
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+        # The same first day, ticked in the carry-over list.
+        "row-0-from": "2401-08-30", "row-0-to": "", "row-0-type": "first_day",
+        "row-0-label": "First Day (Grades 1-12)", "row-0-notes": "",
+        "row-0-deleted": "0",
+    }, follow_redirects=False)
+
+    firsts = [r for r in store.rows()
+              if r.type == "first_day" and r.first_day.startswith("2401-08")]
+    assert len(firsts) == 1, f"the first day was written {len(firsts)} times"
+
+
+def test_it_will_not_invent_an_organization_name(signed_in, store):
+    """It used to fall back to the literal string "PTSA", which printed a wrong
+    name on the sheet families receive -- a guess becoming data, in the one
+    flow whose whole design is that guesses cannot."""
+    (store.years_dir / "2400-01.toml").write_text("this is not toml [[[")
+    response = signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+    assert response.status_code == 409
+    assert "headed with a guess" in response.text
+
+
+@pytest.mark.parametrize("bad", [
+    {"start_year": ""},
+    {"start_year": "not a year"},
+    {"first_day": ""},
+    {"last_day": "Sept 2"},
+])
+def test_a_malformed_create_says_so_rather_than_committing_it(signed_in, store,
+                                                              bad):
+    """These arrive in hidden fields and are interpolated straight into TOML.
+    An empty one produced `last_day = `, which is not parseable at all, in a
+    file that was then committed and pushed."""
+    data = {"start_year": 2401, "first_day": "2401-08-30",
+            "last_day": "2402-06-15", "early_release_start": "2401-09-08"}
+    data.update(bad)
+    before = store.head()
+    response = signed_in.post("/new-year/create", data=data,
+                              follow_redirects=False)
+    assert response.status_code == 400
+    assert store.head() == before
+
+
+def test_a_staged_year_that_cannot_build_blocks_publishing(signed_in, store):
+    """Publishing pushes the whole CSV, and on 1 August the scheduled build
+    switches which year calendar.pdf means. A gate that only looked at today's
+    year would let a broken staged year sit on main with CI green and take the
+    calendar down on the day it became current."""
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    # Break next year only. This year is untouched and still builds.
+    rows = store.rows()
+    for row in rows:
+        if row.first_day.startswith("2401-08"):
+            row.type = "not_a_real_type"
+    store.save(rows, "Someone", "broke next year")
+
+    response = signed_in.post("/publish", follow_redirects=False)
+    assert response.status_code == 422
+    assert "2401-02" in response.text
+    assert store.has_unpublished_changes() is True
+
+
+def test_saving_keeps_you_on_the_year_you_were_editing(signed_in, store):
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    html = signed_in.get("/?year=2401-02").text
+    assert '<input type="hidden" name="year" value="2401-02">' in html
+
+    fields = form_from(html)
+    response = signed_in.post("/save", data=fields, follow_redirects=False)
+    assert response.headers["location"] == "/?year=2401-02"
+
+
+def test_the_year_picker_is_outside_the_unsaved_changes_form(signed_in, store):
+    """A <select> fires a bubbling `input` event before `change`. Inside the
+    form that set the dirty flag, so every year switch asked "Leave site?" on a
+    page nobody had edited -- and answering Stay left the picker showing one
+    year beside another year's page."""
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    html = signed_in.get("/").text
+    picker = html.index('id="year-picker"')
+    form = html.index('id="dates-form"')
+    assert picker < form, "the picker is inside the form that guards edits"
+
+
+def test_the_kindergarten_date_survives_a_validation_error(signed_in):
+    """It is optional, so a person is unlikely to notice it being cleared --
+    and would end up with no kindergarten box on the calendar."""
+    response = signed_in.post("/new-year", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "kindergarten_first_day": "2401-09-02",
+        "last_day": "2402-06-15", "early_release_start": "",
+    })
+    assert response.status_code == 400
+    assert 'value="2401-09-02"' in response.text

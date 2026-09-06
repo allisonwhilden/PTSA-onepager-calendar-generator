@@ -48,8 +48,28 @@
 </div>
 {% endif %}
 
+{% if years | length > 1 %}
+{# Outside the dates form on purpose. A <select> fires a bubbling `input`
+   event before `change`, so in the form it set the unsaved-changes flag and
+   every year switch asked "Leave site?" on a page nobody had touched. #}
+<div class="panel" style="display:flex;gap:10px;align-items:center">
+  <label for="year-picker" style="font-weight:600">School year</label>
+  <select id="year-picker" aria-label="Which school year to show"
+          style="font:inherit;padding:6px 9px;border:1px solid var(--line);
+                 border-radius:5px;background:var(--panel);color:var(--ink)">
+    {% for y in years %}
+    <option value="{{ y }}" {% if y == viewing %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
+  <span class="count">Every date below is editable whatever this says — it
+    chooses which calendar is drawn and checked, not which rows you can
+    change.</span>
+</div>
+{% endif %}
+
 <form method="post" action="/save" id="dates-form">
 <input type="hidden" name="base" value="{{ base }}">
+<input type="hidden" name="year" value="{{ viewing }}">
 
 <div class="split">
   <div>
@@ -58,18 +78,6 @@
         <h2 style="margin:0">
           {{ build.label if build else 'School year' }} dates
         </h2>
-        {% if years | length > 1 %}
-        {# The CSV holds every year at once, so this changes what is drawn and
-           checked, not which rows are editable -- all of them always are. #}
-        <span class="count">showing</span>
-        <select id="year-picker" aria-label="Which school year to preview"
-                style="font:inherit;padding:5px 8px;border:1px solid var(--line);
-                       border-radius:5px;background:var(--panel);color:var(--ink)">
-          {% for y in years %}
-          <option value="{{ y }}" {% if y == viewing %}selected{% endif %}>{{ y }}</option>
-          {% endfor %}
-        </select>
-        {% endif %}
         <span class="count" id="row-count">{{ rows | length }} dates</span>
         <span class="spacer"></span>
         <input name="name" value="{{ name }}" placeholder="Your name"

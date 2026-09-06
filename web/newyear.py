@@ -28,6 +28,8 @@ import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
 
+from calendar_gen.school_year import SchoolYear, label_for
+
 from .csvio import Row
 
 #: 52 weeks. Keeps the weekday, which is what recurring school events are
@@ -54,21 +56,11 @@ class Proposal:
     def was(self) -> str:
         return self.previous.first_day
 
-    @property
-    def moved_weekday(self) -> bool:
-        """True when the suggestion lands on a different weekday.
 
-        Only possible for a date that would not parse, since 364 days preserves
-        the weekday. Worth surfacing rather than swallowing.
-        """
-        old, new = self.previous.parsed_date(), self.suggested.parsed_date()
-        if old is None or new is None:
-            return True
-        return old.weekday() != new.weekday()
-
-
-def label_for(start_year: int) -> str:
-    return f"{start_year}-{str(start_year + 1)[-2:]}"
+# label_for comes from calendar_gen.school_year, not from here. It is the
+# function available_years uses to decide which filenames it recognises, so a
+# second spelling of the rule would let this module write a config that the
+# renderer then refuses to see.
 
 
 def _shift(iso: str) -> str:
@@ -85,8 +77,17 @@ def propose(previous_rows: list[Row], previous_start: int) -> list[Proposal]:
     holds every year at once, so without this the list would include dates from
     years ago that nobody meant to bring forward.
     """
-    first = dt.date(previous_start, 8, 1)
-    last = dt.date(previous_start + 1, 7, 31)
+    # The printed span, asked of the thing that defines it. CLAUDE.md:
+    # "MONTH_COUNT in school_year.py is the single source for this, and
+    # last_printed_day is derived from it so the drawn months and the
+    # dropped-date span cannot drift." Restating 1 Aug - 31 Jul here would be a
+    # third definition, and would offer July rows that no calendar can print.
+    span = SchoolYear(
+        start_year=previous_start, organization="",
+        early_release_start=dt.date(previous_start, 9, 1),
+        last_day=dt.date(previous_start + 1, 6, 30),
+    )
+    first, last = span.first_printed_day, span.last_printed_day
 
     proposals = []
     for row in sorted(previous_rows, key=Row.sort_key):
@@ -185,4 +186,10 @@ def suggest_dates(start_year: int) -> dict[str, str]:
             september, 2).isoformat(),                            # a Wednesday
         "last_day": first_weekday_on_or_after(
             dt.date(start_year + 1, 6, 10), 2).isoformat(),
+        # Blank rather than guessed: whether kindergarten starts later, and
+        # when, is a district decision with no arithmetic behind it. Present as
+        # a key so the form and its error path both have something to echo --
+        # missing, Jinja renders it as empty and silently drops whatever the
+        # person had typed.
+        "kindergarten_first_day": "",
     }
