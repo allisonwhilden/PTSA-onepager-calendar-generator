@@ -30,7 +30,7 @@ from fastapi.templating import Jinja2Templates
 from calendar_gen import event_types, pipeline
 
 from . import changes as changes_mod
-from . import csvio
+from . import csvio, newyear
 from .auth import COOKIE_NAME, SESSION_MAX_AGE, Auth, LoginRateLimit
 from .store import Conflict, Store, StoreError
 
@@ -167,7 +167,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
 
     # --- the calendar ----------------------------------------------------
 
-    def build_current(store: Store):
+    def build_current(store: Store, year: int | None = None):
         """The draft as `build.py` would build it, or the reason it cannot.
 
         Returns (Build, error, sha). A calendar too broken to render still has
@@ -175,31 +175,47 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         so a failure here is something to show at the top of the page, never
         something to refuse to load.
 
-        Cached against the commit it was built from. Laying the page out costs
-        about 0.75s and a single view of the dates page needs it twice: once
-        for publish_problems() and again when the browser fetches the preview
-        image, which used to arrive as a separate request with a fresh Build
-        and an empty document cache.
+        ``year`` selects which school year to look at; None means the one
+        `build.py` would pick, which is the one that gets published. The CSV
+        holds every year at once, so this is a view, not a filter on the data.
+
+        Cached against the commit it was built from and the year asked for.
+        Laying the page out costs about 0.75s and a single view of the dates
+        page needs it twice: once for publish_problems() and again when the
+        browser fetches the preview image, which used to arrive as a separate
+        request with a fresh Build and an empty document cache.
         """
         sha = store.head()
+        key = (sha, year)
         cached = app.state.build_cache
-        if cached and cached[0] == sha:
+        if cached and cached[0] == key:
             return cached[1], cached[2], sha
         try:
-            built, error = pipeline.build(store.csv_path, store.years_dir), None
+            built = pipeline.build(store.csv_path, store.years_dir, year)
+            error = None
         except pipeline.Blocked as exc:
             built, error = None, str(exc)
-        app.state.build_cache = (sha, built, error)
+        app.state.build_cache = (key, built, error)
         return built, error, sha
 
+    def start_year_of(label: str | None) -> int | None:
+        """"2027-28" -> 2027, and anything unrecognisable -> the default year."""
+        try:
+            return int((label or "").split("-")[0])
+        except ValueError:
+            return None
+
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, sess: dict = Depends(session)):
+    def index(request: Request, year: str = "", sess: dict = Depends(session)):
         store: Store = app.state.store
         store.sync()
-        build, error, _ = build_current(store)
+        wanted = start_year_of(year)
+        build, error, _ = build_current(store, wanted)
         return render(
             request, "index.html",
             rows=sorted(store.rows(), key=csvio.Row.sort_key),
+            years=store.year_labels(),
+            viewing=build.label if build else year,
             types=event_types.choices(),
             build=build, error=error,
             base=store.head(),
@@ -207,6 +223,19 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
             changes=_pending_changes(store),
             name=sess.get("name", ""),
         )
+
+    def _organization(store: Store) -> str:
+        """The organization name, from whichever year config we can read.
+
+        Asked of the existing config rather than of the person: they have
+        already typed it into a config once, and a second spelling of "Horace
+        Mann PTSA" would print a different heading on next year's page.
+        """
+        try:
+            year, _ = pipeline.load_year(store.years_dir)
+            return year.organization
+        except pipeline.Blocked:
+            return "PTSA"
 
     def _pending_changes(store: Store) -> list:
         try:
@@ -244,7 +273,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         return response
 
     @app.get("/preview.png")
-    def preview_image(sess: dict = Depends(session)):
+    def preview_image(year: str = "", sess: dict = Depends(session)):
         """The preview as a picture.
 
         The obvious way to show a PDF in a page is an iframe, and on a desktop
@@ -255,15 +284,15 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         everywhere; the PDF is still one click away for anyone who wants to
         print or send it.
         """
-        build, error, _ = build_current(app.state.store)
+        build, error, _ = build_current(app.state.store, start_year_of(year))
         if build is None:
             raise HTTPException(status_code=422, detail=error)
         return Response(_page_png(build), media_type="image/png",
                         headers={"Cache-Control": "no-store"})
 
     @app.get("/preview.pdf")
-    def preview(sess: dict = Depends(session)):
-        build, error, _ = build_current(app.state.store)
+    def preview(year: str = "", sess: dict = Depends(session)):
+        build, error, _ = build_current(app.state.store, start_year_of(year))
         if build is None:
             raise HTTPException(status_code=422, detail=error)
         return Response(
@@ -361,6 +390,103 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         except StoreError as exc:
             return render(request, "error.html", message=str(exc), status_code=404)
         return RedirectResponse("/", status_code=303)
+
+    # --- starting a new school year --------------------------------------
+
+    @app.get("/new-year", response_class=HTMLResponse)
+    def new_year_form(request: Request, sess: dict = Depends(session)):
+        store: Store = app.state.store
+        store.sync()
+        start = newyear.next_year_after(store.years_dir)
+        return render(request, "new-year.html",
+                      label=newyear.label_for(start), start_year=start,
+                      existing=store.year_labels(),
+                      suggested=newyear.suggest_dates(start), error=None)
+
+    @app.post("/new-year", response_class=HTMLResponse)
+    def new_year_review(request: Request, start_year: int = Form(...),
+                        first_day: str = Form(""), last_day: str = Form(""),
+                        early_release_start: str = Form(""),
+                        kindergarten_first_day: str = Form(""),
+                        sess: dict = Depends(session)):
+        """Second screen: which of last year's dates carry over.
+
+        Nothing is written yet. Every suggestion here is a guess at where an
+        event lands a year on, and a guess must not become data without a
+        person looking at it -- so this is the looking, and the next step only
+        writes what was ticked.
+        """
+        store: Store = app.state.store
+        store.sync()
+        label = newyear.label_for(start_year)
+
+        missing = [name for name, value in
+                   (("the first day", first_day), ("the last day", last_day),
+                    ("the first early-release Wednesday", early_release_start))
+                   if not value]
+        if missing:
+            start = start_year
+            return render(request, "new-year.html", status_code=400,
+                          label=label, start_year=start,
+                          existing=store.year_labels(),
+                          suggested={"first_day": first_day,
+                                     "last_day": last_day,
+                                     "early_release_start": early_release_start},
+                          error=f"Please fill in {', and '.join(missing)}.")
+
+        previous = start_year - 1
+        return render(
+            request, "new-year-dates.html",
+            label=label, start_year=start_year,
+            previous_label=newyear.label_for(previous),
+            proposals=newyear.propose(store.rows(), previous),
+            types=event_types.choices(),
+            first_day=first_day, last_day=last_day,
+            early_release_start=early_release_start,
+            kindergarten_first_day=kindergarten_first_day,
+        )
+
+    @app.post("/new-year/create")
+    async def new_year_create(request: Request, sess: dict = Depends(session)):
+        store: Store = app.state.store
+        form = await request.form()
+        start_year = int(form.get("start_year"))
+        label = newyear.label_for(start_year)
+
+        first_day = (form.get("first_day") or "").strip()
+        last_day = (form.get("last_day") or "").strip()
+        kinder = (form.get("kindergarten_first_day") or "").strip()
+
+        config = newyear.config_toml(
+            organization=_organization(store),
+            label=label,
+            early_release_start=(form.get("early_release_start") or "").strip(),
+            last_day=last_day,
+            boxed_days=[d for d in (first_day, kinder, last_day) if d],
+            source_label=newyear.label_for(start_year - 1),
+        )
+
+        carried = _rows_from_form(form)
+        # The two dates the config already names still have to be listed, or
+        # the page draws a box on a day with nothing beside it.
+        carried += [
+            csvio.Row(date=first_day, type="first_day",
+                      label="First Day (Grades 1-12)"),
+            csvio.Row(date=last_day, type="last_day",
+                      label="Last Day of School"),
+        ]
+        if kinder:
+            carried.append(csvio.Row(date=kinder, type="first_day",
+                                     label="First Day (Kindergarten)"))
+
+        try:
+            store.add_year(label, config, store.rows() + carried,
+                           sess.get("name", ""),
+                           f"started {label} with {len(carried)} dates")
+        except StoreError as exc:
+            return render(request, "error.html", message=str(exc),
+                          status_code=409)
+        return RedirectResponse(f"/?year={label}", status_code=303)
 
     @app.get("/healthz")
     def healthz():

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block body %}
+<h2 style="font-size:20px">Start the {{ label }} calendar</h2>
+<p class="count">
+  Two steps. First the four dates the whole calendar hangs off, then which of
+  last year's events come back. Nothing is published until you say so.
+</p>
+
+{% if error %}<div class="problem"><p style="margin:0">{{ error }}</p></div>{% endif %}
+
+<form method="post" action="/new-year">
+<input type="hidden" name="start_year" value="{{ start_year }}">
+
+<div class="panel">
+  <h2>The dates from the district</h2>
+  <p class="count" style="margin-bottom:16px">
+    Take these from the district's own calendar at
+    <a href="https://www.lwsd.org/calendar" target="_blank" rel="noopener">lwsd.org/calendar</a>
+    rather than from a saved PDF — they republish under a new link when dates
+    change, and the old copy still says FINAL.
+  </p>
+
+  <div class="field-grid">
+    <label>First day of school
+      <span>Grades 1–12.</span>
+      <input type="date" name="first_day" required
+             value="{{ suggested.first_day }}"></label>
+
+    <label>First day for kindergarten
+      <span>Leave empty if it is the same day.</span>
+      <input type="date" name="kindergarten_first_day"
+             value="{{ suggested.kindergarten_first_day or '' }}"></label>
+
+    <label>Last day of school
+      <span>Usually a half day.</span>
+      <input type="date" name="last_day" required
+             value="{{ suggested.last_day }}"></label>
+
+    <label>First early-release Wednesday
+      <span>Every Wednesday from here to the last day is marked
+            automatically.</span>
+      <input type="date" name="early_release_start" required
+             value="{{ suggested.early_release_start }}"></label>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn primary" type="submit">Next: last year's events</button>
+  <a class="btn" href="/">Cancel</a>
+</div>
+</form>
+
+<p class="count" style="margin-top:20px">
+  School years already set up: {{ existing | join(', ') }}
+</p>
+{% endblock %}

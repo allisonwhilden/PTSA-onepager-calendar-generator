@@ -37,6 +37,13 @@ on gh-pages and the dates are a CSV in the repo. If this app breaks, or its host
 disappears, families still see the calendar and the dates can still be edited on
 GitHub directly.
 
+**A suggestion never becomes data on its own.** Starting a new school year
+offers each of last year's events 364 days on -- 52 whole weeks, so a Thursday
+event stays on a Thursday -- next to the date it had. Nothing is carried over
+until someone ticks it. That is why there is no "needs checking" state stored
+anywhere: the ticking *is* the check, and an unticked row is not submitted at
+all, so an unreviewed guess has no route into the CSV.
+
 **The server holds nothing.** Every save is committed and pushed as it happens,
 so a restart, a redeploy or a move to a different host loses no one's work. On
 boot it clones and carries on.
@@ -50,6 +57,7 @@ boot it clones and carries on.
 | `csvio.py` | reads and writes the CSV without disturbing it |
 | `changes.py` | "Bike Derby moved from Sep 17 to Sep 24" |
 | `auth.py` | one shared password, a signed cookie |
+| `newyear.py` | proposes last year's dates a year on; writes nothing on its own |
 
 ## Running it locally
 

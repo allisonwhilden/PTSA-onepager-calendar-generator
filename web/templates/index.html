@@ -58,6 +58,18 @@
         <h2 style="margin:0">
           {{ build.label if build else 'School year' }} dates
         </h2>
+        {% if years | length > 1 %}
+        {# The CSV holds every year at once, so this changes what is drawn and
+           checked, not which rows are editable -- all of them always are. #}
+        <span class="count">showing</span>
+        <select id="year-picker" aria-label="Which school year to preview"
+                style="font:inherit;padding:5px 8px;border:1px solid var(--line);
+                       border-radius:5px;background:var(--panel);color:var(--ink)">
+          {% for y in years %}
+          <option value="{{ y }}" {% if y == viewing %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
         <span class="count" id="row-count">{{ rows | length }} dates</span>
         <span class="spacer"></span>
         <input name="name" value="{{ name }}" placeholder="Your name"
@@ -176,12 +188,13 @@
     <div class="panel">
       <h2>How it will print</h2>
       {% if build %}
-      <img class="sheet" src="/preview.png"
+      <img class="sheet" src="/preview.png?year={{ viewing }}"
            alt="The calendar as it will print">
       <p class="note">
         This is the draft, built by the same code that makes the real PDF.
         It updates when you save.
-        <a href="/preview.pdf" target="_blank" rel="noopener">Open full size</a>
+        <a href="/preview.pdf?year={{ viewing }}" target="_blank"
+           rel="noopener">Open full size</a>
       </p>
       {% else %}
       <p class="note">No preview while the calendar cannot be built.</p>
@@ -283,6 +296,16 @@
   window.addEventListener('beforeunload', function (event) {
     if (dirty) event.preventDefault();
   });
+
+  const picker = document.getElementById('year-picker');
+  if (picker) {
+    picker.addEventListener('change', function () {
+      // A plain reload, not a fetch: the whole page depends on which year is
+      // being looked at, and half-updating it is how a preview ends up
+      // showing one year beside another year's warnings.
+      window.location = '/?year=' + encodeURIComponent(picker.value);
+    });
+  }
 
   retally();
 })();

@@ -593,3 +593,134 @@ def test_the_preview_image_is_a_real_png(signed_in):
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+
+# --- starting a new school year --------------------------------------------
+
+def test_the_new_year_form_offers_the_year_after_the_newest(signed_in):
+    html = signed_in.get("/new-year").text
+    assert "Start the 2401-02 calendar" in html
+    assert "lwsd.org/calendar" in html
+
+
+def test_the_new_year_form_insists_on_the_dates_it_needs(signed_in):
+    response = signed_in.post("/new-year", data={"start_year": 2401,
+                                                 "first_day": "",
+                                                 "last_day": "",
+                                                 "early_release_start": ""})
+    assert response.status_code == 400
+    assert "Please fill in" in response.text
+
+
+def new_year_step_one(client, **overrides):
+    data = {"start_year": 2401, "first_day": "2401-08-30",
+            "last_day": "2402-06-15", "early_release_start": "2401-09-08"}
+    data.update(overrides)
+    return client.post("/new-year", data=data)
+
+
+def test_the_second_screen_proposes_last_years_dates(signed_in):
+    html = new_year_step_one(signed_in).text
+    assert "Curriculum Night" in html
+    assert "2401-10-14" in html, "expected the 364-day shift of 2400-10-15"
+    assert "suggestions, not" in html, "the page must not present these as data"
+
+
+def test_nothing_unticked_is_carried_over(signed_in, store):
+    """The ticking is the review. A row nobody ticked is not sent at all --
+    its inputs have no name until the checkbox gives them one -- so an
+    unreviewed guess cannot reach the CSV even by mistake.
+    """
+    # Compared by date as well as label: the fixture already has a row called
+    # "Last Day of School" for the current year.
+    before = {(r.first_day, r.label) for r in store.rows()}
+    response = signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+    assert response.status_code == 303
+
+    added = [r for r in store.rows() if (r.first_day, r.label) not in before]
+    # Only the first and last days, which the person typed themselves.
+    assert sorted(r.label for r in added) == ["First Day (Grades 1-12)",
+                                              "Last Day of School"]
+    assert not any(r.label == "Curriculum Night" and r.first_day.startswith("2401")
+                   for r in store.rows()), "an unticked suggestion was written"
+
+
+def test_a_ticked_date_is_carried_over(signed_in, store):
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+        "row-0-from": "2401-10-14", "row-0-to": "", "row-0-type": "ptsa_event",
+        "row-0-label": "Curriculum Night", "row-0-notes": "",
+        "row-0-deleted": "0",
+    }, follow_redirects=False)
+
+    carried = [r for r in store.rows()
+               if r.label == "Curriculum Night" and r.date == "2401-10-14"]
+    assert len(carried) == 1
+
+
+def test_creating_a_year_writes_a_config_that_builds(signed_in, store):
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+        "kindergarten_first_day": "2401-09-02",
+        "row-0-from": "2401-10-14", "row-0-to": "", "row-0-type": "ptsa_event",
+        "row-0-label": "Curriculum Night", "row-0-notes": "",
+        "row-0-deleted": "0",
+    }, follow_redirects=False)
+
+    from calendar_gen import pipeline
+    built = pipeline.build(store.csv_path, store.years_dir, requested=2401)
+    assert built.label == "2401-02"
+    assert built.fits_one_page() is True
+    assert any("Curriculum Night" in d.label for d in built.important)
+
+
+def test_creating_a_year_does_not_disturb_the_published_one(signed_in, store,
+                                                            remote):
+    """Staging next year must leave this year's calendar exactly as it is --
+    that is the whole point of being able to prepare it early."""
+    from calendar_gen import pipeline
+    before = pipeline.build(store.csv_path, store.years_dir, 2400).html
+
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    after = pipeline.build(store.csv_path, store.years_dir, 2400)
+    assert after.html == before, "staging next year changed this year's page"
+    assert store.has_unpublished_changes() is True, "it published itself"
+
+
+def test_you_can_switch_to_editing_the_year_you_just_created(signed_in):
+    """Creating next year is useless if there is then no way to look at it."""
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+
+    html = signed_in.get("/?year=2401-02").text
+    assert "2401-02 dates" in html
+    assert 'id="year-picker"' in html, "no way to switch between the two years"
+
+    import io, pypdf
+    pdf = pypdf.PdfReader(io.BytesIO(
+        signed_in.get("/preview.pdf?year=2401-02").content))
+    assert "2401-02" in pdf.pages[0].extract_text()
+
+
+def test_a_year_that_already_exists_is_refused(signed_in, store):
+    response = signed_in.post("/new-year/create", data={
+        "start_year": 2400, "first_day": "2400-08-30",
+        "last_day": "2401-06-15", "early_release_start": "2400-09-08",
+    }, follow_redirects=False)
+    assert response.status_code == 409
+    assert "already exists" in response.text
+
+
+def test_the_new_year_needs_the_password(client):
+    assert client.get("/new-year", follow_redirects=False).status_code == 303

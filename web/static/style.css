@@ -263,3 +263,26 @@ ul.changes .label { font-weight: 600; }
   .dates td { border-bottom-color: #2e2e2e; }
   .preview iframe { background: #2b2b2b; }
 }
+
+/* --- starting a new year -------------------------------------------------- */
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.field-grid label { display: block; font-weight: 600; font-size: 14px; }
+.field-grid label span {
+  display: block; font-weight: 400; color: var(--muted); font-size: 13px;
+  margin: 2px 0 6px;
+}
+.field-grid input {
+  font: inherit; width: 100%; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); color: var(--ink);
+}
+
+/* An unticked row is not being carried over. Dimmed rather than hidden: the
+   point of the screen is seeing everything last year had and deciding. */
+tr.carry.off { opacity: .5; }
+tr.carry [data-carry] { width: 17px; height: 17px; margin-top: 11px; }

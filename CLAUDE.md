@@ -118,7 +118,11 @@ Review that diff before committing. It is the only review the printed page gets.
 
 ## Rolling to a new school year
 
-A config file and a CSV. No code changes, no workflow changes. See
+In the editor: **New year**, which asks for the four dates the calendar hangs
+off and then offers last year's events a year on, one tick at a time. It writes
+the same config file and CSV rows a person would.
+
+By hand it is a config file and a CSV. No code changes, no workflow changes. See
 [data/years/README.md](data/years/README.md). If a year roll ever requires
 editing Python, that is a bug worth fixing instead.
 

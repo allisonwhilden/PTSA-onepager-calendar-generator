@@ -79,6 +79,7 @@ in the job summary and publishes the current year as usual.
 
 | | |
 |---|---|
+| Someone starts a new school year | A config and the dates they ticked are written as a draft. This year's calendar is untouched. |
 | Someone saves | Committed and pushed to the `draft` branch. Not published. |
 | Someone publishes | `draft` is pushed to `main`; the workflow builds and uploads the PDF. About a minute. |
 | Someone restores an old version | It becomes a draft. Still has to be published. |

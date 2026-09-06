@@ -246,6 +246,29 @@ class Store:
 
     # --- writing -----------------------------------------------------------
 
+    def add_year(self, label: str, config: str, rows: list[Row],
+                 author: str, summary: str) -> str:
+        """Write a new year's config alongside the existing ones, plus its rows.
+
+        The config is added, never replacing another: the CSV holds every year
+        at once and so does data/years, which is what lets next year be staged
+        while this year is still the one being published.
+        """
+        with self.lock:
+            self.sync()
+            path = self.years_dir / f"{label}.toml"
+            if path.exists():
+                raise StoreError(
+                    f"{label} already exists. Edit its dates instead of "
+                    f"creating it again."
+                )
+            path.write_text(config, encoding="utf-8")
+            write_rows(self.csv_path, rows)
+            return self._commit(author, summary)
+
+    def year_labels(self) -> list[str]:
+        return sorted(p.stem for p in self.years_dir.glob("*.toml"))
+
     def save(self, rows: list[Row], author: str, summary: str,
              base: str | None = None) -> str:
         """Write the rows, commit, push. Returns the new draft sha.
