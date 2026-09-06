@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PTSA Calendar Editor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+{% block chrome %}
+<header class="top">
+  <h1>Horace Mann <span class="accent">PTSA</span> Calendar</h1>
+  <nav>
+    <a href="/">Dates</a>
+    <a href="/history">History</a>
+    <a href="/new-year">New year</a>
+    <form method="post" action="/logout" style="display:inline">
+      <button class="btn link" type="submit">Sign out</button>
+    </form>
+  </nav>
+</header>
+{% endblock %}
+<main>{% block body %}{% endblock %}</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

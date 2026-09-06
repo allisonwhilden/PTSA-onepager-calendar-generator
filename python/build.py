@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 from calendar_gen import events as events_mod
-from calendar_gen import layout, render, school_year
+from calendar_gen import pipeline, render
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -84,114 +84,60 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # --- school year -----------------------------------------------------
+    # Every rule about what makes a calendar valid lives in calendar_gen.pipeline,
+    # because the web editor asks the same questions and the two must not drift.
+    # build.py's remaining job is to turn the answer into exit codes and stderr.
     try:
-        start_year, why = school_year.resolve_start_year(args.years_dir, args.year)
-        year = school_year.load(args.years_dir, start_year)
-    except (FileNotFoundError, ValueError) as exc:
+        if args.print_label or args.print_organization:
+            year, _ = pipeline.load_year(
+                args.years_dir, args.year, args.require_current_year)
+            print(year.label if args.print_label else year.organization)
+            return 0
+
+        result = pipeline.build(
+            args.data, args.years_dir, args.year, args.require_current_year)
+    except pipeline.Blocked as exc:
+        # Say which year, and which rows fell outside it, before the error --
+        # for a half-finished year roll those row numbers are the diagnosis.
+        if exc.year is not None:
+            print(f"Building {exc.year.label} ({exc.why})")
+        report(exc.notices,
+               f"{args.data}: {len(exc.notices)} row(s) not on this calendar")
         print(f"error: {exc}", file=sys.stderr)
-        return 2
+        return exc.code
 
-    if args.require_current_year:
-        current = school_year.current_start_year()
-        if start_year != current:
-            wanted = school_year.label_for(current)
-            print(
-                f"error: the current school year is {wanted}, but this build is "
-                f"{year.label} ({why}).\n"
-                f"       Add data/years/{wanted}.toml and this year's rows in "
-                f"{args.data.name} before publishing.",
-                file=sys.stderr,
-            )
-            return 3
+    print(f"Building {result.label} ({result.why})")
 
-    if args.print_label:
-        print(year.label)
-        return 0
+    report(result.warnings, f"{args.data}: {len(result.warnings)} warning(s)")
+    report(result.notices,
+           f"{args.data}: {len(result.notices)} row(s) not on this calendar")
 
-    if args.print_organization:
-        print(year.organization)
-        return 0
+    counts = (f"{len(result.events)} events, {len(result.important)} listed dates")
 
-    print(f"Building {year.label} ({why})")
-
-    # --- events ----------------------------------------------------------
-    try:
-        all_events, warnings = events_mod.load_events(args.data)
-    except events_mod.ValidationError as exc:
-        print(f"\nerror: {exc}", file=sys.stderr)
+    problems = result.publish_problems(strict=args.strict)
+    if problems:
+        print("\nerror: " + "\n       ".join(problems), file=sys.stderr)
         return 1
-    except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-
-    # Notices are separate from warnings on purpose: rows for another school
-    # year are dropped by design, so --strict must not turn the ordinary act of
-    # staging next year's dates into a red build.
-    notices = events_mod.outside_year(
-        all_events, year.first_printed_day, year.last_printed_day
-    )
-    report(warnings, f"{args.data}: {len(warnings)} warning(s)")
-    report(notices, f"{args.data}: {len(notices)} row(s) not on this calendar")
-
-    if warnings and args.strict:
-        print("\nerror: warnings treated as errors (--strict)", file=sys.stderr)
-        return 1
-
-    # --- render ----------------------------------------------------------
-    by_date = layout.events_by_date(all_events, year)
-    months = layout.build_months(by_date, year)
-    important = layout.build_important_dates(all_events, year)
-
-    # Every row landing outside the span means a blank calendar. Without this
-    # the usual half-finished year roll -- new config, last year's CSV -- passes
-    # --check --strict and CI goes green on a page with nothing on it.
-    if not important:
-        if all_events:
-            reason = (f"none of the {len(all_events)} rows in {args.data.name} "
-                      f"fall inside {year.label} ({year.first_printed_day} to "
-                      f"{year.last_printed_day})")
-        else:
-            reason = f"{args.data.name} has no event rows"
-        print(f"\nerror: {reason}, so the calendar would be blank.",
-              file=sys.stderr)
-        return 1
-
-    html = render.render_html(year, months, important)
 
     if args.check:
-        pages = render.count_pages(html)
-        if pages is None:
-            print(f"\nOK: {len(all_events)} events, {len(important)} listed dates, "
-                  f"{len(warnings)} warning(s), {len(notices)} not on this calendar"
+        if result.page_count() is None:
+            print(f"\nOK: {counts}, {len(result.warnings)} warning(s), "
+                  f"{len(result.notices)} not on this calendar"
                   f"\nNote: WeasyPrint is not installed, so the one-page check "
                   f"was skipped.")
             return 0
-        if pages != 1:
-            print(
-                f"\nerror: the calendar renders on {pages} pages. It must fit on "
-                f"one.\n       Remove or shorten a few entries in "
-                f"{args.data.name} -- the page is tight.",
-                file=sys.stderr,
-            )
-            return 1
-        print(f"\nOK: {len(all_events)} events, {len(important)} listed dates, "
-              f"one page, {len(warnings)} warning(s), "
-              f"{len(notices)} not on this calendar")
+        print(f"\nOK: {counts}, one page, {len(result.warnings)} warning(s), "
+              f"{len(result.notices)} not on this calendar")
         return 0
 
-    filename = f"{year.organization.replace(' ', '')}-{year.label}-Calendar.pdf"
-    if args.out:
-        out_path = args.out
-    else:
-        out_path = (args.out_dir or DEFAULT_OUT_DIR) / filename
+    out_path = args.out or (args.out_dir or DEFAULT_OUT_DIR) / result.filename
     try:
-        render.write_pdf(html, out_path)
+        result.write_pdf(out_path)
     except render.WeasyPrintUnavailable as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    print(f"Wrote {out_path} - {len(all_events)} events, {len(important)} listed dates")
+    print(f"Wrote {out_path} - {counts}")
     return 0
 
 

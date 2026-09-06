@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block body %}
+<h2 style="font-size:20px">Which of last year's dates come back?</h2>
+<p class="count">
+  Each suggestion is the same weekday a year on from {{ previous_label }} — the
+  second Thursday stays the second Thursday. <strong>They are suggestions, not
+  data.</strong> Anything pinned to a rule rather than a weekday, like Labor Day
+  or a district break, will be close and may be wrong, so check each one against
+  the district calendar. Nothing you leave unticked is carried over.
+</p>
+
+<form method="post" action="/new-year/create" id="carry-form">
+{% for field in ('start_year', 'first_day', 'last_day',
+                 'early_release_start', 'kindergarten_first_day') %}
+<input type="hidden" name="{{ field }}" value="{{ {
+  'start_year': start_year, 'first_day': first_day, 'last_day': last_day,
+  'early_release_start': early_release_start,
+  'kindergarten_first_day': kindergarten_first_day }[field] }}">
+{% endfor %}
+
+<div class="panel">
+  <div class="actions" style="margin-bottom:12px">
+    <span class="count" id="carry-count"></span>
+    <span class="spacer"></span>
+    <button class="btn small" type="button" data-all="1">Tick all</button>
+    <button class="btn small" type="button" data-all="0">Untick all</button>
+  </div>
+
+  <table class="dates">
+    <thead>
+      <tr>
+        <th style="width:34px"></th>
+        <th class="col-date">Was</th>
+        <th class="col-date">Suggested</th>
+        <th class="col-date">To (optional)</th>
+        <th class="col-type">What kind</th>
+        <th>Name families will see</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in proposals %}
+      <tr data-row class="carry off">
+        <td data-label="Carry over?">
+          <input type="checkbox" data-carry aria-label="Carry over {{ p.label }}">
+          {# Not posted with the row: the checkbox only decides whether these
+             fields get names at all, so an unticked row sends nothing and
+             cannot be written by accident. #}
+        </td>
+        <td data-label="Was" class="count" style="padding-top:12px">{{ p.was }}</td>
+        <td data-label="Suggested">
+          <input type="date" data-field="row-{{ loop.index0 }}-from"
+                 value="{{ p.suggested.first_day }}" disabled></td>
+        <td data-label="To">
+          <input type="date" data-field="row-{{ loop.index0 }}-to"
+                 value="{{ p.suggested.end_date if p.suggested.is_range else '' }}"
+                 disabled></td>
+        <td data-label="What kind">
+          <select data-field="row-{{ loop.index0 }}-type" disabled>
+            {% for t in types %}
+            <option value="{{ t.name }}"
+                    {% if p.type == t.name %}selected{% endif %}>{{ t.title }}</option>
+            {% endfor %}
+            {% if p.type and p.type not in types | map(attribute='name') %}
+            {% set known = resolved_type(p.type) %}
+            <option value="{{ p.type }}" selected>{{ known.title if known else p.type }}</option>
+            {% endif %}
+          </select>
+        </td>
+        <td data-label="Name" class="label-cell">
+          <input type="text" data-field="row-{{ loop.index0 }}-label"
+                 value="{{ p.label }}" disabled>
+          <input type="hidden" data-field="row-{{ loop.index0 }}-notes" value="">
+          <input type="hidden" data-field="row-{{ loop.index0 }}-deleted" value="0">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="actions">
+  <button class="btn primary" type="submit">Create {{ label }}</button>
+  <a class="btn" href="/new-year">Back</a>
+  <span class="count">The first and last days you entered are added
+    automatically.</span>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// A row's inputs carry `data-field` rather than `name` until it is ticked.
+// An un-named input is not submitted at all, so an untick is not "a row the
+// server should ignore" -- it is a row the server never hears about.
+(function () {
+  const form = document.getElementById('carry-form');
+  const count = document.getElementById('carry-count');
+
+  function setRow(tr, on) {
+    tr.classList.toggle('off', !on);
+    tr.querySelectorAll('[data-field]').forEach(function (el) {
+      el.disabled = !on;
+      if (on) { el.name = el.dataset.field; } else { el.removeAttribute('name'); }
+    });
+    tr.querySelector('[data-carry]').checked = on;
+  }
+
+  function retally() {
+    const n = form.querySelectorAll('[data-carry]:checked').length;
+    const all = form.querySelectorAll('[data-carry]').length;
+    count.textContent = `${n} of ${all} carried over`;
+  }
+
+  form.addEventListener('change', function (event) {
+    const box = event.target.closest('[data-carry]');
+    if (!box) return;
+    setRow(box.closest('[data-row]'), box.checked);
+    retally();
+  });
+
+  form.querySelectorAll('[data-all]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const on = button.dataset.all === '1';
+      form.querySelectorAll('[data-row]').forEach(tr => setRow(tr, on));
+      retally();
+    });
+  });
+
+  retally();
+})();
+</script>
+{% endblock %}

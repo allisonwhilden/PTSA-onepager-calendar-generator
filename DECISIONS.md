@@ -89,3 +89,66 @@ it's a deliberate choice rather than an accident of what some lookup happened to
 Types that should be listed in Important Dates but shouldn't change how the school day
 looks set no `fill` and no `circle` — see `informational` in the registry, which
 is what `grades_due` uses.
+
+---
+
+## 3. The editor edits data. It does not draw.
+
+`web/` puts a form in front of `data/all_events.csv` so that a PTSA volunteer can
+move a date without a terminal. It is the second web app this repository has had, and
+the first one is the reason for decision #1 — so the shape of this one was chosen to
+make the same failure impossible rather than merely discouraged.
+
+### What went wrong last time
+
+Two implementations of "draw the calendar" drifted. The TypeScript one guessed
+`no_school` for a type it did not recognise, and five ordinary school days went home to
+families marked as no school.
+
+### Why a form is not a second renderer
+
+The editor never answers a question about the calendar itself. Every such question is
+delegated, and there is nowhere else for the answer to come from:
+
+| Question | Answered by |
+|---|---|
+| What kinds of date are there? | `event_types.choices()` — the registry |
+| Is this set of dates valid? | `calendar_gen.pipeline` |
+| What does the page look like? | `calendar_gen.pipeline`, rendered |
+| Does it still fit on one page? | `Build.publish_problems()` |
+| What gets published? | the deploy workflow, unchanged |
+
+`pipeline.py` was extracted for this. Those rules previously lived inside `build.py`'s
+`main()`, reachable only by running the script, so an editor would have had to
+reimplement them — and a second *validator* fails the same way as a second renderer
+while being much harder to notice. Nothing looks wrong until the day somebody publishes
+a blank page.
+
+The line to hold, when adding to `web/`: **if you are writing a rule about dates or
+about drawing, you are in the wrong file.**
+
+### Git as the database
+
+There is no database. The dates are already a CSV under version control, so a second
+copy in Postgres would mean two answers to "what are this year's dates?" and a migration
+to get them back out. Git already provides history, authorship, diffs and revert, which
+is the entire feature list that was asked for.
+
+It also decides what happens when this app dies. A volunteer-run tool should be
+survivable: if the editor stops working in three years, the dates are still a CSV in a
+repository that `build.py` still renders, and they can still be edited on GitHub.
+
+The same reasoning keeps publishing on the existing workflow. The editor pushes to
+`main` and stops there. Building a PDF itself would have made it a second publisher —
+faster, and eventually disagreeing with the first.
+
+### The password
+
+One shared password, not accounts. Board members change every year, and per-person
+accounts need a person to administer them who is also a volunteer. The first time
+nobody does it, either someone who should be able to fix a date cannot, or an account
+that should have gone stays live.
+
+What makes that safe enough is not the password. It is that every change is committed,
+attributed and revertible in seconds, that publishing is a separate deliberate press,
+and that the worst case is a school calendar that is briefly wrong.

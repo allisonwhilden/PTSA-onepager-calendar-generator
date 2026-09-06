@@ -40,6 +40,10 @@ students and are kept.
    line, and delete the worked example of what moved between revisions; it
    belongs to the year you copied from.
 
+   The calendar editor's **New year** button does everything below, if it is
+   set up -- it writes this file and offers last year's events a year on for
+   you to accept one at a time. What follows is the same job by hand.
+
 3. **Set the three values** in the new file:
    - `early_release_start` — the first early-release Wednesday
    - `last_day` — the last day of school

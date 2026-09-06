@@ -6,6 +6,7 @@ on:
     paths:
       - 'data/**'
       - 'python/**'
+      - 'web/**'
       - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   pull_request:
@@ -13,9 +14,20 @@ on:
     paths:
       - 'data/**'
       - 'python/**'
+      - 'web/**'
       - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   workflow_dispatch:
+
+  # The calendar.pdf link always means "the current school year", and which
+  # year that is changes on 1 August without anybody pushing anything. Until
+  # this schedule existed nothing rebuilt on that date, so the cutover waited
+  # for the next unrelated commit -- and if none came, the link kept serving
+  # last year's calendar into the new one. This is also the nudge to add the
+  # new year: from 1 August, a run with no config for it publishes nothing and
+  # says so in the job summary.
+  schedule:
+    - cron: '17 13 * * *'      # 06:17 Pacific, give or take daylight saving
 
 jobs:
   build:
@@ -31,7 +43,9 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: python/requirements.txt
+          cache-dependency-path: |
+            python/requirements.txt
+            web/requirements.txt
 
       - name: Install system deps
         run: |
@@ -42,13 +56,17 @@ jobs:
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r python/requirements.txt
+          # Both: `pytest` covers the editor as well as the renderer, and the
+          # editor's tests drive the real app against a real repository.
+          pip install -r python/requirements.txt -r web/requirements.txt
 
       - name: Validate event data
         run: python python/build.py --check --strict
 
       - name: Test
-        run: python -m pytest python/tests -q
+        # No path argument: naming one here overrides pytest.ini's testpaths,
+        # which is how the editor's 133 tests were collected by nobody.
+        run: python -m pytest
 
       # The filename carries the school year, which build.py derives from the
       # configs in data/years -- so nothing here needs editing in a new year.
@@ -101,6 +119,16 @@ jobs:
             exit 0
           fi
 
+          # The newest year with a config, which in spring is next year. The
+          # docs promise a permanent link to it so it can be shared for review
+          # before 1 August, and until this the deploy only ever built the
+          # current year -- so that link 404'd until the day it stopped being
+          # needed. build.py cannot be asked for "newest" (resolve_start_year
+          # prefers the current year whenever it has a config, which is the
+          # right answer for every other caller), so read the directory.
+          NEWEST="$(ls data/years/*.toml | sed 's|.*/||; s|\.toml$||' \
+                    | sort | tail -1)"
+
           NAME="$(basename "$PDF")"
           ORG="$(python python/build.py --print-organization)"
           # Escaped for the heredoc below: "Smith & Jones PTSA" would otherwise
@@ -109,6 +137,29 @@ jobs:
           ORG_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$ORG")"
           LABEL_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$LABEL")"
           cp "$PDF" /tmp/calendar.pdf
+
+          NEXT_READY=""
+          if [ "$NEWEST" != "$LABEL" ]; then
+            # Deliberately allowed to fail. A config for next year usually
+            # appears before next year's dates do -- that is the normal middle
+            # of a year roll -- and a half-staged next year must not take the
+            # current year's calendar off the website with it.
+            echo "Also building $NEWEST so it has a link before it goes live."
+            if python python/build.py --year "${NEWEST%%-*}" --out /tmp/next.pdf
+            then
+              NEXT_READY="yes"
+            else
+              rm -f /tmp/next.pdf
+              {
+                echo "### $NEWEST is not ready to preview"
+                echo
+                echo "Its config exists but it does not build yet, so only"
+                echo "$LABEL was published. This is the normal state part way"
+                echo "through a year roll."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::$NEWEST has a config but does not build yet."
+            fi
+          fi
           rm -rf dist
 
           git config --local user.email "action@github.com"
@@ -127,8 +178,42 @@ jobs:
           # and published to the public site.
           git clean -fdxq
 
+          # Nothing here changed unless the source did. index.html carries
+          # today's date and so does the PDF footer, so the "no changes"
+          # guard below can never fire on its own -- which was fine while
+          # publishing meant somebody pushing, and is 365 commits a year now
+          # that this runs daily. The stamp carries the year labels too, so
+          # the 1 August rollover still republishes on an unchanged source.
+          # Built after NEXT_READY is known, not before it. This block used to
+          # sit above the build that assigns it, and the whole step runs under
+          # `set -u`, so every push and every scheduled run died here with
+          # "NEXT_READY: unbound variable" -- after building the PDF and before
+          # publishing anything.
+          NEXT_LINK_HTML=""
+          if [ -n "$NEXT_READY" ]; then
+            NEXT_HTML="$(python -c 'import html,sys; print(html.escape(sys.argv[1]))' "$NEWEST")"
+            NEXT_LINK_HTML="<br>Next year, for review before it goes live: <a href=\"calendar-$NEXT_HTML.pdf\">calendar-$NEXT_HTML.pdf</a>"
+          fi
+
+          STAMP="$GITHUB_SHA $LABEL $NEWEST ${NEXT_READY:-no}"
+          if [ "$(cat .published 2>/dev/null)" = "$STAMP" ]; then
+            echo "Already published: $STAMP" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf '%s' "$STAMP" > .published
+
           cp /tmp/calendar.pdf calendar.pdf
-          cp /tmp/calendar.pdf "calendar-$(date +%Y%m%d).pdf"
+          # Stamped with the school year, not the date it was built. A
+          # date-stamped copy was one new file per publish, which was tolerable
+          # while publishing meant somebody pushing a commit and is not now
+          # that this runs daily -- it would add 365 files a year. The year is
+          # also the stamp somebody actually wants a link to: next year's
+          # calendar can be shared as calendar-2027-28.pdf before 1 August,
+          # while calendar.pdf still means the year we are in.
+          cp /tmp/calendar.pdf "calendar-$LABEL.pdf"
+          if [ -f /tmp/next.pdf ]; then
+            cp /tmp/next.pdf "calendar-$NEWEST.pdf"
+          fi
 
           cat > index.html <<HTML
           <!doctype html>
@@ -154,6 +239,12 @@ jobs:
             <h1>$ORG_HTML Calendar $LABEL_HTML</h1>
             <p class="sub">Updated $(date +'%B %-d, %Y') &middot; one page, Letter size.</p>
             <a class="btn" href="calendar.pdf" download="$NAME">Download PDF</a>
+            <p class="sub" style="margin-top:1rem">
+              This link always points at the current school year.
+              A permanent link to this year in particular:
+              <a href="calendar-$LABEL_HTML.pdf">calendar-$LABEL_HTML.pdf</a>
+              $NEXT_LINK_HTML
+            </p>
             <iframe src="calendar.pdf" title="Calendar preview"></iframe>
           </body>
           </html>

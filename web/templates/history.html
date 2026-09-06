@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<h2 style="font-size:20px">History</h2>
+<p class="count">Every save is kept. Restoring puts an old set of dates back as
+   a new draft -- nothing is overwritten, and you still choose when to publish.</p>
+
+<div class="panel">
+  <table class="versions">
+    <thead>
+      <tr><th>When</th><th>Who</th><th>What changed</th><th></th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for v in versions %}
+      <tr>
+        <td style="white-space:nowrap">{{ v.when_local() }}</td>
+        <td>{{ v.author or "—" }}</td>
+        <td>{{ v.summary }}</td>
+        <td>
+          {% if v.published %}<span class="tag live">published</span>
+          {% else %}<span class="tag">draft</span>{% endif %}
+        </td>
+        <td style="text-align:right;white-space:nowrap">
+          <a class="btn small" href="/history/{{ v.sha }}">Look</a>
+          {% if v.sha != current %}
+          <form method="post" action="/history/{{ v.sha }}/restore"
+                style="display:inline"
+                onsubmit="return confirm('Put these dates back? It becomes a draft you can review before publishing.')">
+            <button class="btn small" type="submit">Restore</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<a class="btn primary" href="/">Back to the dates</a>
+{% endblock %}

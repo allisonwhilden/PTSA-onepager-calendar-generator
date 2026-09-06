@@ -18,16 +18,31 @@ correctly.
    did exactly this and the two drifted into disagreeing about what the calendar
    said — see [DECISIONS.md](DECISIONS.md). It is parked on `web-ui-parked`.
 
-2. **Never guess at data.** An event type that isn't declared in
+   `web/` is **not** a second renderer and must not become one. It is a form
+   over `data/all_events.csv`: it edits the CSV, asks
+   `calendar_gen.pipeline` whether the result is valid, shows the page that
+   pipeline renders, and pushes to `main` so the existing workflow publishes.
+   The line to hold: **if a rule about dates or drawing is being written in
+   `web/`, it is in the wrong file.** The type dropdown comes from the registry,
+   the validation from the pipeline, the preview from the renderer. Nothing in
+   `web/` decides what a calendar looks like or what counts as valid.
+
+2. **One validator, for the same reason.** `calendar_gen/pipeline.py` decides
+   whether a calendar can be built and whether it may be published. `build.py`
+   turns that into exit codes; the editor turns it into things to click. A
+   second opinion in either would be the drift bug again, and quieter — nothing
+   looks wrong until somebody publishes a blank page.
+
+3. **Never guess at data.** An event type that isn't declared in
    `python/calendar_gen/event_types.py` must fail the build with its row number.
    The original bug in this repo was a lookup that silently mapped an unknown
    type to `no_school`, printing five ordinary school days as "No School".
 
-3. **The renderer does not decide which dates appear.** If a row is in the CSV it
+4. **The renderer does not decide which dates appear.** If a row is in the CSV it
    is shown. The registry declares only *how* each type is drawn. Never filter
    rows out because they seem unimportant.
 
-4. **It must stay one page.** `test_calendar_is_exactly_one_page` guards this. If
+5. **It must stay one page.** `test_calendar_is_exactly_one_page` guards this. If
    a change breaks it, fix the layout — do not relax the test.
 
 ## Commands
@@ -38,7 +53,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV and the one-page fit
 python python/build.py --year 2026
-pytest                            # 113 tests, ~3s
+pytest                            # 264 tests, ~90s (131 renderer + 133 editor)
 ```
 
 `build.py` runs from any directory; if it ever needs a `cd` first, that's
@@ -66,6 +81,8 @@ Review that diff before committing. It is the only review the printed page gets.
 | The page itself | `python/templates/`, `python/styles/calendar.css` |
 | The dates | `data/all_events.csv` |
 | Per-year config | `data/years/<label>.toml` |
+| Build + validate, shared by CLI and editor | `python/calendar_gen/pipeline.py` |
+| The editor (never draws) | `web/` — see [web/README.md](web/README.md) |
 
 ## Rules that are easy to get wrong
 
@@ -101,7 +118,11 @@ Review that diff before committing. It is the only review the printed page gets.
 
 ## Rolling to a new school year
 
-A config file and a CSV. No code changes, no workflow changes. See
+In the editor: **New year**, which asks for the four dates the calendar hangs
+off and then offers last year's events a year on, one tick at a time. It writes
+the same config file and CSV rows a person would.
+
+By hand it is a config file and a CSV. No code changes, no workflow changes. See
 [data/years/README.md](data/years/README.md). If a year roll ever requires
 editing Python, that is a bug worth fixing instead.
 

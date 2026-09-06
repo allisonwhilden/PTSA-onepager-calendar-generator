@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="panel status live">
+  <span class="dot"></span>
+  <div>
+    <div class="what">Published</div>
+    <div class="detail">
+      The new PDF is being built now. It usually takes about a minute, and the
+      link on the school website updates on its own -- there is nothing else to
+      do.
+    </div>
+  </div>
+</div>
+{% if pdf_url %}
+<p><a class="btn" href="{{ pdf_url }}" target="_blank" rel="noopener">
+  Open the published calendar</a>
+  <span class="count">(give it a minute, then refresh)</span></p>
+{% endif %}
+<a class="btn primary" href="/">Back to the dates</a>
+{% endblock %}
