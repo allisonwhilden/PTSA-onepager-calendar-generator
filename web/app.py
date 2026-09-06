@@ -50,7 +50,9 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     as a fallback, which is what keeps the tests exercising the same wiring the
     deployment uses rather than a special path of their own.
     """
-    app = FastAPI(title="PTSA Calendar Editor", docs_url=None, redoc_url=None)
+    app = FastAPI(title="PTSA Calendar Editor",
+                  # No API for anyone to consume, so no schema to publish.
+                  docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store or _store_from_env()
     app.state.auth = auth or Auth.from_env()
     app.state.limiter = LoginRateLimit()
@@ -383,7 +385,16 @@ def _store_from_env() -> Store:
 
     if not remote:
         # No remote configured: work against this checkout. Useful for running
-        # the editor locally against a clone you already have.
+        # the editor locally against a clone you already have, and wrong in a
+        # container, where only python/ and web/ are copied in and there is no
+        # data/ to edit. Say which it is rather than failing later on a missing
+        # file with no hint that a variable was never set.
+        if not (REPO / "data" / "all_events.csv").exists():
+            raise RuntimeError(
+                f"REPO_REMOTE is not set and there is no calendar data at "
+                f"{REPO / 'data'}. Set REPO_REMOTE to the repository's clone "
+                f"URL (and GITHUB_TOKEN to a token that may push to it)."
+            )
         return Store(REPO)
 
     if token and remote.startswith("https://") and "@" not in remote:

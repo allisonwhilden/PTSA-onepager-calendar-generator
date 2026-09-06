@@ -6,6 +6,7 @@ on:
     paths:
       - 'data/**'
       - 'python/**'
+      - 'web/**'
       - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   pull_request:
@@ -13,9 +14,20 @@ on:
     paths:
       - 'data/**'
       - 'python/**'
+      - 'web/**'
       - 'pytest.ini'
       - '.github/workflows/build-and-deploy.yml'
   workflow_dispatch:
+
+  # The calendar.pdf link always means "the current school year", and which
+  # year that is changes on 1 August without anybody pushing anything. Until
+  # this schedule existed nothing rebuilt on that date, so the cutover waited
+  # for the next unrelated commit -- and if none came, the link kept serving
+  # last year's calendar into the new one. This is also the nudge to add the
+  # new year: from 1 August, a run with no config for it publishes nothing and
+  # says so in the job summary.
+  schedule:
+    - cron: '17 13 * * *'      # 06:17 Pacific, give or take daylight saving
 
 jobs:
   build:
@@ -31,7 +43,9 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: python/requirements.txt
+          cache-dependency-path: |
+            python/requirements.txt
+            web/requirements.txt
 
       - name: Install system deps
         run: |
@@ -42,7 +56,9 @@ jobs:
       - name: Install python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r python/requirements.txt
+          # Both: `pytest` covers the editor as well as the renderer, and the
+          # editor's tests drive the real app against a real repository.
+          pip install -r python/requirements.txt -r web/requirements.txt
 
       - name: Validate event data
         run: python python/build.py --check --strict
@@ -128,7 +144,14 @@ jobs:
           git clean -fdxq
 
           cp /tmp/calendar.pdf calendar.pdf
-          cp /tmp/calendar.pdf "calendar-$(date +%Y%m%d).pdf"
+          # Stamped with the school year, not the date it was built. A
+          # date-stamped copy was one new file per publish, which was tolerable
+          # while publishing meant somebody pushing a commit and is not now
+          # that this runs daily -- it would add 365 files a year. The year is
+          # also the stamp somebody actually wants a link to: next year's
+          # calendar can be shared as calendar-2027-28.pdf before 1 August,
+          # while calendar.pdf still means the year we are in.
+          cp /tmp/calendar.pdf "calendar-$LABEL.pdf"
 
           cat > index.html <<HTML
           <!doctype html>
@@ -154,6 +177,11 @@ jobs:
             <h1>$ORG_HTML Calendar $LABEL_HTML</h1>
             <p class="sub">Updated $(date +'%B %-d, %Y') &middot; one page, Letter size.</p>
             <a class="btn" href="calendar.pdf" download="$NAME">Download PDF</a>
+            <p class="sub" style="margin-top:1rem">
+              This link always points at the current school year.
+              A permanent link to this year in particular:
+              <a href="calendar-$LABEL_HTML.pdf">calendar-$LABEL_HTML.pdf</a>
+            </p>
             <iframe src="calendar.pdf" title="Calendar preview"></iframe>
           </body>
           </html>

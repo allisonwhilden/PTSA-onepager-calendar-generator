@@ -13,6 +13,15 @@ the tests, rebuilds the PDF and republishes it.
 
 ## The everyday task: change a date
 
+**In a browser**, once the editor is set up: sign in, change the date, save,
+then Review and publish. The new PDF is live in about a minute and the link on
+the school website updates itself. Every change is kept and anything can be put
+back from History. See **[web/README.md](web/README.md)**, and
+**[docs/deploying-the-editor.md](docs/deploying-the-editor.md)** for the
+one-time setup.
+
+**Or by hand** — always available, and the same thing the editor does for you:
+
 1. Edit `data/all_events.csv`.
 2. Check it: `python python/build.py --check --strict`
 3. Run the tests and read the diff: `pytest`
