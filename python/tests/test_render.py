@@ -15,7 +15,7 @@ import pytest
 
 from calendar_gen import event_types as et
 from calendar_gen import events as ev
-from calendar_gen import layout, render, school_year
+from calendar_gen import layout, pipeline, render, school_year
 
 FROZEN = dt.date(2026, 1, 15)  # so the footer date does not drift the snapshot
 
@@ -198,16 +198,28 @@ def laid_out(rendered_html):
 
 
 @pytest.fixture(scope="session")
-def built_pdf(tmp_path_factory, rendered_html):
-    """Written through render.write_pdf -- the function `build.py` itself calls.
+def shipped_build(real_csv, years_dir):
+    """The shipped calendar, built the way build.py and the editor build it.
 
-    Deliberately not `laid_out.write_pdf(...)`: that skipped write_pdf entirely,
-    so dropping its base_url or its mkdir left the suite green while
-    `python python/build.py` wrote an unstyled PDF or crashed.
+    Everything that decides whether a calendar is valid lives in
+    calendar_gen.pipeline so the CLI and the web editor cannot answer
+    differently. Tests go through it for the same reason: a fixture that
+    assembled the page by hand would stop noticing when the real path broke.
     """
     _require_weasyprint()
-    return render.write_pdf(rendered_html,
-                            tmp_path_factory.mktemp("pdf") / "calendar.pdf")
+    return pipeline.build(real_csv, years_dir, generated_at=FROZEN)
+
+
+@pytest.fixture(scope="session")
+def built_pdf(tmp_path_factory, shipped_build):
+    """Written the way `build.py` writes it -- through Build.write_pdf.
+
+    Deliberately not `laid_out.write_pdf(...)`: that skips the production
+    writer entirely, so losing its base_url or its mkdir would leave the suite
+    green while `python python/build.py` wrote an unstyled PDF or crashed.
+    """
+    return shipped_build.write_pdf(
+        tmp_path_factory.mktemp("pdf") / "calendar.pdf")
 
 
 def _boxes(page):
@@ -355,10 +367,10 @@ def test_the_page_is_not_empty(rendered_html, shipped_events):
     assert "date-item" in rendered_html
 
 
-def test_count_pages_reports_one_for_the_shipped_page(rendered_html):
-    """`--check` uses this to protect the one-page promise before a push."""
-    _require_weasyprint()
-    assert render.count_pages(rendered_html) == 1
+def test_the_shipped_page_counts_as_one(shipped_build):
+    """`--check` reads this to protect the one-page promise before a push."""
+    assert shipped_build.page_count() == 1
+    assert shipped_build.fits_one_page() is True
 
 
 @pytest.fixture(scope="session")

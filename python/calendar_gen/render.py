@@ -67,30 +67,12 @@ def _load_weasyprint():
 def layout_pages(html: str):
     """Lay the page out and return WeasyPrint's rendered document.
 
-    The single place that knows the base_url the stylesheet link needs. Both
-    write_pdf and count_pages go through it, so a test that measures geometry
-    exercises the same wiring the real build uses.
+    The single place that knows the base_url the stylesheet link needs, and
+    the only way into WeasyPrint from here. calendar_gen.pipeline lays a page
+    out through this once and answers both "how many pages?" and "give me the
+    PDF" from the same document, so a test that measures geometry exercises the
+    wiring the real build uses.
     """
     HTML = _load_weasyprint()
     # base_url resolves the stylesheet link in base.html.
     return HTML(string=html, base_url=str(PYTHON_DIR)).render()
-
-
-def write_pdf(html: str, out_path: Path) -> Path:
-    """Render HTML to a PDF at ``out_path``."""
-    document = layout_pages(html)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    document.write_pdf(target=str(out_path))
-    return out_path
-
-
-def count_pages(html: str) -> int | None:
-    """How many pages this HTML renders to, or None if WeasyPrint is absent.
-
-    Used by `--check` so the one-page promise is verified before a push, not
-    only in CI where the remedy is far from whoever edited the CSV.
-    """
-    try:
-        return len(layout_pages(html).pages)
-    except WeasyPrintUnavailable:
-        return None
