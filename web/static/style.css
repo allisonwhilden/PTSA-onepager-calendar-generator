@@ -223,6 +223,11 @@ ul.changes .label { font-weight: 600; }
   .split { grid-template-columns: 1fr; }
   .preview { position: static; }
   .dates thead { display: none; }
+  /* An author `display` beats the user agent's `[hidden] { display: none }`
+     whatever the specificity, so without the rule below every row stayed
+     visible under 900px and the search box filtered nothing while the count
+     updated as though it had -- on the layout the card design exists for. */
+  .dates tr[hidden] { display: none; }
   .dates tr {
     display: grid;
     grid-template-columns: 1fr 1fr;

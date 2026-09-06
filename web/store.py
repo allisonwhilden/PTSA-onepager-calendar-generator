@@ -92,11 +92,17 @@ class Store:
     """
 
     def __init__(self, repo: Path, remote: str | None = None,
-                 main: str = "main", draft: str = "draft"):
+                 main: str = "main", draft: str = "draft",
+                 owns_checkout: bool = True):
         self.repo = Path(repo)
         self.remote = remote
         self.main = main
         self.draft = draft
+        #: Whether this clone belongs to the editor alone. False means we are
+        #: running against somebody's own working copy -- the documented
+        #: local-development path -- where switching branches and setting a
+        #: commit identity would be vandalism, not housekeeping.
+        self.owns_checkout = owns_checkout
         self.lock = threading.Lock()
 
     # --- git plumbing ------------------------------------------------------
@@ -144,6 +150,15 @@ class Store:
         drifted from it is a container that has been up too long, not an edit
         anyone made.
         """
+        if not self.owns_checkout:
+            # Somebody's own checkout. Do not touch their branch, their commit
+            # identity, or their uncommitted work: sync() used to run
+            # `git config user.name` and `git checkout -B draft origin/main`
+            # here, which on a developer's clone force-switched them off their
+            # feature branch, discarded what was in the worktree, and left
+            # every later commit they made attributed to the editor.
+            return
+
         self._git("config", "user.name", BOT_NAME)
         self._git("config", "user.email", BOT_EMAIL)
         if self.remote:
@@ -252,6 +267,13 @@ class Store:
             write_rows(self.csv_path, rows)
             return self._commit(author, summary)
 
+    @property
+    def _committer(self) -> list[str]:
+        """Identity flags for one commit, when we may not set it globally."""
+        if self.owns_checkout:
+            return []
+        return ["-c", f"user.name={BOT_NAME}", "-c", f"user.email={BOT_EMAIL}"]
+
     def _commit(self, author: str, summary: str) -> str:
         """Commit whatever is staged in data/, or return HEAD if nothing moved.
 
@@ -263,7 +285,7 @@ class Store:
             return self.head()
 
         who = (author or "").strip() or "Someone"
-        self._git("commit", "-m", f"{who}: {summary}")
+        self._git(*self._committer, "commit", "-m", f"{who}: {summary}")
         self._push(self.draft)
         return self.head()
 
@@ -272,8 +294,12 @@ class Store:
             return
         self._git("push", "origin", f"{branch}:{target or branch}")
 
-    def publish(self) -> str:
+    def publish(self, expected: str | None = None) -> str:
         """Fast-forward main to the draft. Returns the published sha.
+
+        ``expected`` is the sha the caller validated. Publishing is the only
+        thing here that reaches families, so it refuses to push anything but
+        the exact draft that was checked.
 
         A plain push, because the draft always descends from main -- which is
         also what makes this safe. If it ever does not, git refuses rather than
@@ -287,6 +313,15 @@ class Store:
         """
         with self.lock:
             self.sync()
+            if expected is not None and expected != self.head():
+                # The caller checked that a particular draft builds, fits on one
+                # page and is worth sending. sync() above may have just replaced
+                # it with a newer one nobody has checked, and pushing that would
+                # publish something no gate ever saw.
+                raise Conflict(
+                    "The draft changed while this page was open, so it has not "
+                    "been published. Reload and look at the changes again."
+                )
             if not self.has_unpublished_changes():
                 return self.published_head()
             if self.remote:

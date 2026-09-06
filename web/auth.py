@@ -23,14 +23,13 @@ Two things this deliberately does not do:
 
 from __future__ import annotations
 
-import hmac
 import os
-import secrets
 import time
 from dataclasses import dataclass
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError, VerifyMismatchError
+from argon2.exceptions import (InvalidHashError, VerificationError,
+                               VerifyMismatchError)
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 COOKIE_NAME = "ptsa_session"
@@ -62,6 +61,23 @@ class Auth:
                 "    python -c \"from web.auth import hash_password; "
                 "print(hash_password('your password'))\""
             )
+        # Checked here, at startup, rather than at the first login attempt. An
+        # argon2 hash is full of dollar signs ($argon2id$v=19$m=...), so a
+        # deployment that sets it in double quotes hands us a string the shell
+        # has eaten half of. Left to `check`, that raises InvalidHashError --
+        # which is a ValueError, not a VerificationError, so it escapes and
+        # turns every login into a 500 with a traceback and no clue that a
+        # variable was mangled. Failing to boot says so once, clearly.
+        try:
+            _hasher.verify(password_hash, "probe for a well-formed hash")
+        except VerifyMismatchError:
+            pass
+        except InvalidHashError as exc:
+            raise RuntimeError(
+                "EDITOR_PASSWORD_HASH is not a valid argon2 hash. If it was "
+                "set in double quotes, the shell will have expanded the $ "
+                "signs in it -- use single quotes."
+            ) from exc
         # Derived from the password hash rather than configured separately, so
         # there is one secret to manage instead of two -- and so changing the
         # password invalidates every existing session, which is what someone
@@ -82,7 +98,11 @@ class Auth:
         """
         try:
             return bool(_hasher.verify(self.password_hash, password or ""))
-        except (VerifyMismatchError, VerificationError):
+        except (VerifyMismatchError, VerificationError, InvalidHashError):
+            # InvalidHashError is a ValueError rather than a VerificationError,
+            # so it is not covered by the others. from_env rejects a mangled
+            # hash at startup; this is for an Auth built directly, where a
+            # wrong password and an unusable hash should both mean "no".
             return False
 
     def issue(self, name: str = "") -> str:
@@ -123,11 +143,3 @@ class LoginRateLimit:
 
     def clear(self, key: str) -> None:
         self._hits.pop(key, None)
-
-
-def constant_time_equals(a: str, b: str) -> bool:
-    return hmac.compare_digest(a.encode(), b.encode())
-
-
-def new_secret() -> str:
-    return secrets.token_urlsafe(32)

@@ -135,6 +135,40 @@
           {% endfor %}
         </tbody>
       </table>
+
+      {# The shape of a new row, rendered once by the server and cloned by the
+         Add button. It used to be built by copying the first row's dropdown
+         markup, which carried that row's `selected` across -- so a date added
+         without touching the dropdown silently took row 0's type, and if row 0
+         happened to be a no-school day the new date printed as a black square
+         nobody chose. It also threw outright when there were no rows to copy,
+         which is reachable: delete every date, save, and there was then no way
+         to add one back except editing the CSV. #}
+      <template id="row-template">
+        <tr data-row>
+          <td data-label="From">
+            <input type="date" name="row-__I__-from" required></td>
+          <td data-label="To"><input type="date" name="row-__I__-to"></td>
+          <td data-label="What kind">
+            <select name="row-__I__-type" required>
+              <option value="" selected disabled>Choose one&hellip;</option>
+              {% for t in types %}
+              <option value="{{ t.name }}" title="{{ t.hint }}">{{ t.title }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td data-label="Name" class="label-cell">
+            <input type="text" name="row-__I__-label" required
+                   placeholder="What is it called?">
+            <input type="hidden" name="row-__I__-notes" value="">
+            <input type="hidden" name="row-__I__-deleted" value="0">
+          </td>
+          <td class="act">
+            <button class="btn link" type="button" data-remove
+                    title="Remove this date">&times;</button>
+          </td>
+        </tr>
+      </template>
     </div>
   </div>
 
@@ -214,27 +248,21 @@
     retally();
   });
 
+  const template = document.getElementById('row-template');
+
   document.getElementById('add-row').addEventListener('click', function () {
     const i = next++;
-    const tr = document.createElement('tr');
-    tr.setAttribute('data-row', '');
-    tr.innerHTML = `
-      <td data-label="From"><input type="date" name="row-${i}-from"></td>
-      <td data-label="To"><input type="date" name="row-${i}-to"></td>
-      <td data-label="What kind">
-        <select name="row-${i}-type">${document.querySelector('#rows select').innerHTML}</select>
-      </td>
-      <td data-label="Name" class="label-cell">
-        <input type="text" name="row-${i}-label" placeholder="What is it called?">
-        <input type="hidden" name="row-${i}-notes" value="">
-        <input type="hidden" name="row-${i}-deleted" value="0">
-      </td>
-      <td class="act">
-        <button class="btn link" type="button" data-remove
-                title="Remove this date">&times;</button>
-      </td>`;
-    tbody.appendChild(tr);
-    tr.querySelector('input').focus();
+    const fragment = template.content.cloneNode(true);
+    // The template carries __I__ where the row index goes. Nothing is copied
+    // from an existing row, so a new row starts with no type chosen and the
+    // browser makes the person choose one rather than inheriting somebody
+    // else's -- and this works when the table is empty.
+    fragment.querySelectorAll('[name]').forEach(function (el) {
+      el.name = el.name.replace('__I__', i);
+    });
+    tbody.appendChild(fragment);
+    const added = tbody.lastElementChild;
+    added.querySelector('input').focus();
     retally();
   });
 

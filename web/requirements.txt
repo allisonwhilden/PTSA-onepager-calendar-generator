@@ -12,6 +12,11 @@ argon2-cffi==25.1.0          # the shared password's hash
 # a black rectangle in some embedded viewers, and someone checking a date
 # should not have to know which browser they are on.
 pypdfium2==5.13.0
+# Used directly by the preview (page.render(...).to_pil()). It arrives
+# transitively through WeasyPrint today, so /preview.png works by accident of
+# that package's dependency list and would start failing on a WeasyPrint bump
+# with every declared dependency satisfied.
+pillow==12.3.0
 
 # Tests
 httpx==0.28.1                # what fastapi's TestClient drives

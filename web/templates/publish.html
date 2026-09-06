@@ -41,6 +41,9 @@
 
 <div class="actions">
   <form method="post" action="/publish">
+    {# The draft this page showed. Publishing checks it still matches, so what
+       goes to families is what was actually reviewed on this screen. #}
+    <input type="hidden" name="reviewed" value="{{ sha }}">
     <button class="btn publish" type="submit">Publish to the website</button>
   </form>
   <a class="btn" href="/">Not yet, back to the dates</a>

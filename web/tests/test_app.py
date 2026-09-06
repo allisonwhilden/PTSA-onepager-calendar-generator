@@ -481,3 +481,115 @@ def test_an_alias_type_is_shown_by_what_it_does_and_not_rewritten(signed_in, sto
 
     assert store.rows()[0].type == "grades_due", "the alias was rewritten"
     assert "changed from" not in store.history()[0].summary
+
+
+# --- things a review found ------------------------------------------------
+
+@pytest.mark.parametrize("target,expected", [
+    ("/history", "/history"),
+    ("https://evil.example/phish", "/"),
+    ("//evil.example/phish", "/"),          # protocol-relative, not a path
+    ("", "/"),
+    (None, "/"),
+])
+def test_login_only_redirects_to_this_site(client, target, expected):
+    """`next` is redirected to after a successful login.
+
+    Unchecked, /login?next=https://evil.example/ signs a volunteer in and drops
+    them somewhere that can ask for the shared password again -- with the real
+    host sitting in their history to make it look right.
+    """
+    data = {"password": PASSWORD}
+    if target is not None:
+        data["next"] = target
+    response = client.post("/login", data=data, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == expected
+
+
+def test_an_expired_session_does_not_silently_discard_a_save(client):
+    """A 303 on POST makes the browser re-issue it as a GET with no body, so
+    somebody who left the tab open past the expiry and pressed Save would watch
+    ten edits vanish -- and land on a /save that does not answer GET."""
+    response = client.post("/save", data={"row-0-from": "2400-10-15"},
+                           follow_redirects=False)
+    assert response.status_code == 401
+    assert "expired" in response.text
+    assert "Back button" in response.text
+
+
+def test_publishing_refuses_a_draft_it_did_not_check(signed_in, store, remote,
+                                                     tmp_path):
+    """The gate and the push have to be looking at the same thing.
+
+    publish() syncs on its way to the push. If the draft moved between the page
+    being checked and the button being pressed, the calendar that was validated
+    is not the calendar that goes out.
+    """
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+    # The sha the publish page showed, carried in its form.
+    reviewed = re.search(r'name="reviewed" value="([0-9a-f]+)"',
+                         signed_in.get("/publish").text).group(1)
+
+    # Someone else pushes to draft between the check and the press.
+    sam = Store.clone(str(remote), tmp_path / "sam")
+    rows = sam.rows()
+    rows.append(type(rows[0])(date="2401-02-02", type="ptsa_event",
+                              label="Something nobody reviewed"))
+    sam.save(rows, "Sam", "a change nobody looked at")
+
+    response = signed_in.post("/publish", data={"reviewed": reviewed},
+                              follow_redirects=False)
+    assert response.status_code == 409
+    assert "while this page was open" in response.text
+    assert "Something nobody reviewed" not in git(
+        remote, "show", "main:data/all_events.csv")
+
+
+def test_one_page_view_lays_the_calendar_out_once(signed_in, store):
+    """The dates page needs the page laid out for publish_problems(), and the
+    browser then fetches the preview image as a separate request. Without a
+    cache that is two full WeasyPrint layouts -- about 1.5s -- for one view."""
+    from calendar_gen import pipeline
+
+    calls = []
+    original = pipeline.build
+
+    def counted(*args, **kwargs):
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    pipeline.build = counted
+    try:
+        signed_in.get("/")
+        signed_in.get("/preview.png")
+    finally:
+        pipeline.build = original
+
+    assert len(calls) == 1, f"built the calendar {len(calls)} times for one view"
+
+
+def test_the_cache_does_not_serve_a_stale_calendar(signed_in, store):
+    """Cached against the commit, so a save has to invalidate it."""
+    before = signed_in.get("/preview.png").content
+
+    fields = form_from(signed_in.get("/").text)
+    fields.update({"row-99-from": "2400-12-05", "row-99-to": "",
+                   "row-99-type": "ptsa_event", "row-99-label": "Winter Social",
+                   "row-99-notes": "", "row-99-deleted": "0"})
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert signed_in.get("/preview.png").content != before
+
+
+def test_the_preview_image_is_a_real_png(signed_in):
+    """There was no test on /preview.png at all, and its Pillow dependency
+    arrived only transitively through WeasyPrint."""
+    response = signed_in.get("/preview.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")

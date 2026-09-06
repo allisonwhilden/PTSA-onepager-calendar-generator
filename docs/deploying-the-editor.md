@@ -69,9 +69,11 @@ That link always means *the current school year*, and it keeps meaning that on
 its own: a scheduled build rolls it over on 1 August. Link it once and never
 touch the school site again.
 
-Next year's calendar gets its own permanent link as soon as it is published —
+Next year gets its own permanent link as soon as its dates build —
 `calendar-2027-28.pdf` — so it can be shared for review in the spring while
-`calendar.pdf` still shows the year everyone is actually in.
+`calendar.pdf` still shows the year everyone is actually in. Part way through a
+year roll, when next year has a config but not yet its dates, the build says so
+in the job summary and publishes the current year as usual.
 
 ## What happens when
 
@@ -82,6 +84,7 @@ Next year's calendar gets its own permanent link as soon as it is published —
 | Someone restores an old version | It becomes a draft. Still has to be published. |
 | 1 August | The scheduled build rolls `calendar.pdf` to the new school year. |
 | No config for the new school year | The build publishes nothing and says so in the Actions job summary, rather than serving an ended calendar as the current one. |
+| Nothing has changed since yesterday | The scheduled build notices and publishes nothing, so gh-pages does not collect a commit a day. |
 | The editor is down | The published calendar is unaffected. Dates can be edited on GitHub directly. |
 | The token expires | Saving fails with a clear message. The published calendar is unaffected. |
 

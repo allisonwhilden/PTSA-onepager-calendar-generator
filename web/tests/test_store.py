@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from web import csvio
-from web.store import Conflict, Store, StoreError
+from web.store import Conflict, Store, StoreError, _redact
 
 CSV = """\
 date,start_date,end_date,type,label,notes
@@ -278,15 +278,43 @@ def test_restoring_to_what_is_already_there_makes_no_commit(store):
 
 # --- safety ----------------------------------------------------------------
 
-def test_git_errors_do_not_leak_the_token_in_the_remote_url(tmp_path):
-    """The remote carries a GitHub token and git echoes the remote URL in a
-    good many of its error messages -- which get shown to users and logged."""
-    store = Store(tmp_path / "nope",
-                  remote="https://x-access-token:ghp_SECRETVALUE@github.com/o/r")
-    (tmp_path / "nope").mkdir()
+@pytest.mark.parametrize("text", [
+    "origin\thttps://x-access-token:ghp_SECRETVALUE@github.com/o/r.git (fetch)",
+    "fatal: could not read from "
+    "'https://x-access-token:ghp_SECRETVALUE@github.com/o/r.git'",
+])
+def test_redact_removes_credentials_from_a_url(text):
+    """`git remote -v` prints the remote in full, token and all.
+
+    Nothing in the store runs it today; _redact is what stops the day somebody
+    adds it for diagnostics from putting a live token into an error page and
+    the container logs.
+    """
+    cleaned = _redact(text)
+    assert "ghp_SECRETVALUE" not in cleaned
+    assert "***" in cleaned
+    assert "github.com/o/r.git" in cleaned, "it redacted more than the credentials"
+
+
+def test_a_failed_git_command_does_not_leak_the_token(store):
+    """The whole message a user could be shown, end to end.
+
+    Deliberately asserts only that the token is absent, not that _redact is
+    what removed it: modern git strips credentials from its own error output,
+    so pinning "***" here would have been pinning git's behaviour rather than
+    ours. The earlier version of this test pointed at a directory that was not
+    a repository, so git said "not a git repository" -- a message with no URL
+    in it -- and the test passed with _redact stubbed out entirely.
+    """
+    store._git("remote", "set-url", "origin",
+               "https://x-access-token:ghp_SECRETVALUE@127.0.0.1:1/o/r.git")
+
     with pytest.raises(StoreError) as caught:
         store._git("push", "origin", "main")
+
     assert "ghp_SECRETVALUE" not in str(caught.value)
+    assert "127.0.0.1" in str(caught.value), (
+        "git said nothing about the remote, so this proves nothing")
 
 
 def test_a_restart_picks_the_draft_back_up(store, remote, tmp_path):

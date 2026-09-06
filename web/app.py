@@ -42,6 +42,21 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes"}
 
 
+def safe_next(target: str | None) -> str:
+    """A path on this site, or "/".
+
+    `next` arrives from the query string and is redirected to after a
+    successful login. Unchecked, a link like
+    /login?next=https://evil.example/ signs a volunteer in and lands them
+    somewhere else that can ask for the shared password again -- with the real
+    host sitting in their history to make it look right. Only a single-slash
+    path is allowed: "//evil.example" is a protocol-relative URL, not a path.
+    """
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return "/"
+    return target
+
+
 def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     """Build the app.
 
@@ -56,6 +71,9 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     app.state.store = store or _store_from_env()
     app.state.auth = auth or Auth.from_env()
     app.state.limiter = LoginRateLimit()
+    #: (sha, Build | None, error | None) for the last commit built. One entry:
+    #: everyone is looking at the same draft.
+    app.state.build_cache = None
     # Cookies go out Secure unless told otherwise, so a misconfigured proxy
     # cannot quietly downgrade the session to plain HTTP. Tests and local
     # development set it to false explicitly.
@@ -103,11 +121,22 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
 
     @app.exception_handler(401)
     async def to_login(request: Request, exc: HTTPException):
-        return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+        if request.method == "POST":
+            # Never redirect a POST here. A 303 makes the browser re-issue it as
+            # a GET with no body, so somebody who left the tab open past the
+            # session expiry, edited ten dates and pressed Save would watch all
+            # of it vanish -- and land on a /save that does not answer GET. The
+            # page they typed on is still one Back away, so say so.
+            return render(request, "login.html", next="/", status_code=401,
+                          error="Your session expired, so that was not saved. "
+                                "Sign in again, then press your browser's Back "
+                                "button -- your changes are still on the page.")
+        return RedirectResponse(f"/login?next={safe_next(request.url.path)}",
+                                status_code=303)
 
     @app.get("/login", response_class=HTMLResponse)
     def login_form(request: Request, next: str = "/"):
-        return render(request, "login.html", next=next, error=None)
+        return render(request, "login.html", next=safe_next(next), error=None)
 
     @app.post("/login")
     def login(request: Request, password: str = Form(""),
@@ -122,7 +151,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                           error="That password is not right.")
 
         app.state.limiter.clear(who)
-        response = RedirectResponse(next or "/", status_code=303)
+        response = RedirectResponse(safe_next(next), status_code=303)
         response.set_cookie(
             COOKIE_NAME, app.state.auth.issue(name),
             max_age=SESSION_MAX_AGE, httponly=True,
@@ -141,21 +170,33 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     def build_current(store: Store):
         """The draft as `build.py` would build it, or the reason it cannot.
 
-        Returns (Build | None, error | None). A calendar too broken to render
-        still has to be editable -- that is the state someone needs the editor
-        for most -- so a failure here is something to show at the top of the
-        page, never something to refuse to load.
+        Returns (Build, error, sha). A calendar too broken to render still has
+        to be editable -- that is the state someone needs the editor for most --
+        so a failure here is something to show at the top of the page, never
+        something to refuse to load.
+
+        Cached against the commit it was built from. Laying the page out costs
+        about 0.75s and a single view of the dates page needs it twice: once
+        for publish_problems() and again when the browser fetches the preview
+        image, which used to arrive as a separate request with a fresh Build
+        and an empty document cache.
         """
+        sha = store.head()
+        cached = app.state.build_cache
+        if cached and cached[0] == sha:
+            return cached[1], cached[2], sha
         try:
-            return pipeline.build(store.csv_path, store.years_dir), None
+            built, error = pipeline.build(store.csv_path, store.years_dir), None
         except pipeline.Blocked as exc:
-            return None, str(exc)
+            built, error = None, str(exc)
+        app.state.build_cache = (sha, built, error)
+        return built, error, sha
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request, sess: dict = Depends(session)):
         store: Store = app.state.store
         store.sync()
-        build, error = build_current(store)
+        build, error, _ = build_current(store)
         return render(
             request, "index.html",
             rows=sorted(store.rows(), key=csvio.Row.sort_key),
@@ -214,7 +255,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         everywhere; the PDF is still one click away for anyone who wants to
         print or send it.
         """
-        build, error = build_current(app.state.store)
+        build, error, _ = build_current(app.state.store)
         if build is None:
             raise HTTPException(status_code=422, detail=error)
         return Response(_page_png(build), media_type="image/png",
@@ -222,7 +263,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
 
     @app.get("/preview.pdf")
     def preview(sess: dict = Depends(session)):
-        build, error = build_current(app.state.store)
+        build, error, _ = build_current(app.state.store)
         if build is None:
             raise HTTPException(status_code=422, detail=error)
         return Response(
@@ -235,7 +276,7 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     def publish_form(request: Request, sess: dict = Depends(session)):
         store: Store = app.state.store
         store.sync()
-        build, error = build_current(store)
+        build, error, sha = build_current(store)
         blockers = list(filter(None, [error]))
         if build is not None:
             blockers += build.publish_problems()
@@ -243,13 +284,29 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
             request, "publish.html",
             changes=_pending_changes(store),
             pending=store.has_unpublished_changes(),
-            blockers=blockers, build=build,
+            blockers=blockers, build=build, sha=sha,
         )
 
     @app.post("/publish")
-    def do_publish(request: Request, sess: dict = Depends(session)):
+    def do_publish(request: Request, reviewed: str = Form(""),
+                   sess: dict = Depends(session)):
         store: Store = app.state.store
-        build, error = build_current(store)
+        # Sync before validating, not after. publish() syncs on its way to the
+        # push, so validating first and syncing second would check one draft
+        # and send another.
+        store.sync()
+        build, error, checked = build_current(store)
+
+        # `reviewed` is the draft the publish page showed. If the draft has
+        # moved since -- somebody else saved while this page sat open -- then
+        # publishing now would send a change this person never saw, and it
+        # would pass every gate, because the gate would have re-run on the new
+        # content. Validated and reviewed have to be the same thing.
+        if reviewed and reviewed != checked:
+            return render(request, "conflict.html", status_code=409,
+                          message="Someone else saved while this page was open, "
+                                  "so nothing has been published. Look at the "
+                                  "changes again -- there are more of them now.")
         blockers = list(filter(None, [error]))
         if build is not None:
             blockers += build.publish_problems()
@@ -262,7 +319,10 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                           pending=store.has_unpublished_changes(),
                           status_code=422)
         try:
-            store.publish()
+            store.publish(expected=checked)
+        except Conflict as exc:
+            return render(request, "conflict.html", message=str(exc),
+                          status_code=409)
         except StoreError as exc:
             return render(request, "error.html", message=str(exc),
                           status_code=500)
@@ -395,7 +455,9 @@ def _store_from_env() -> Store:
                 f"{REPO / 'data'}. Set REPO_REMOTE to the repository's clone "
                 f"URL (and GITHUB_TOKEN to a token that may push to it)."
             )
-        return Store(REPO)
+        # owns_checkout=False: this is the developer's own clone, not a
+        # disposable one the editor may reset.
+        return Store(REPO, owns_checkout=False)
 
     if token and remote.startswith("https://") and "@" not in remote:
         remote = remote.replace("https://", f"https://x-access-token:{token}@", 1)

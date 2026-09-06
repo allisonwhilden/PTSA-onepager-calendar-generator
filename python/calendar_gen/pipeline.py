@@ -101,9 +101,12 @@ class Build:
     def _require_document(self):
         doc = self.document()
         if doc is None:
-            # Re-raise the real message, which names the missing system
-            # libraries rather than saying "None".
-            render.layout_pages(self.html)
+            # Raises WeasyPrintUnavailable with the real message, which names
+            # the missing system libraries rather than saying "None". Returned
+            # rather than discarded: if this call ever succeeds where the first
+            # failed, callers got None back and an AttributeError instead of
+            # either a PDF or the clear error this line exists to produce.
+            return render.layout_pages(self.html)
         return doc
 
     def pdf_bytes(self) -> bytes:
