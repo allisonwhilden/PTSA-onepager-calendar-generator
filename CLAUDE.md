@@ -53,7 +53,7 @@ source .venv/bin/activate
 python python/build.py            # build the current school year into build/
 python python/build.py --check    # validate the CSV and the one-page fit
 python python/build.py --year 2026
-pytest                            # 193 tests, ~40s (renderer + editor)
+pytest                            # 250 tests, ~90s (131 renderer + 119 editor)
 ```
 
 `build.py` runs from any directory; if it ever needs a `cd` first, that's

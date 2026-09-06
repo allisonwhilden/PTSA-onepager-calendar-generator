@@ -97,6 +97,12 @@ def main() -> int:
         result = pipeline.build(
             args.data, args.years_dir, args.year, args.require_current_year)
     except pipeline.Blocked as exc:
+        # Say which year, and which rows fell outside it, before the error --
+        # for a half-finished year roll those row numbers are the diagnosis.
+        if exc.year is not None:
+            print(f"Building {exc.year.label} ({exc.why})")
+        report(exc.notices,
+               f"{args.data}: {len(exc.notices)} row(s) not on this calendar")
         print(f"error: {exc}", file=sys.stderr)
         return exc.code
 

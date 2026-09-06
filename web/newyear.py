@@ -158,14 +158,16 @@ boxed_days = [{boxes}]
 
 
 def next_year_after(years_dir: Path) -> int:
-    """The year to offer creating: one on from the newest config there is."""
-    newest = 0
-    for path in Path(years_dir).glob("*.toml"):
-        try:
-            newest = max(newest, int(path.stem.split("-")[0]))
-        except ValueError:
-            continue
-    return newest + 1 if newest else dt.date.today().year
+    """The year to offer creating: one on from the newest config there is.
+
+    Through available_years, which is the same list the renderer works from. A
+    glob of its own here would be a third rule for what counts as a year, and
+    the three would only have to disagree once.
+    """
+    from calendar_gen.school_year import available_years
+
+    years = available_years(years_dir)
+    return years[-1] + 1 if years else dt.date.today().year
 
 
 def suggest_dates(start_year: int) -> dict[str, str]:

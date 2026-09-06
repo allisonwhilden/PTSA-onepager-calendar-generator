@@ -116,7 +116,7 @@
                      value="{{ row.end_date if row.is_range else '' }}">
             </td>
             <td data-label="What kind">
-              <select name="row-{{ loop.index0 }}-type">
+              <select name="row-{{ loop.index0 }}-type" required>
                 {% for t in types %}
                 <option value="{{ t.name }}"
                         title="{{ t.hint }}"
@@ -124,16 +124,25 @@
                   {{ t.title }}
                 </option>
                 {% endfor %}
-                {# A spelling already in the file that is an alias rather than a
-                   canonical name. Kept selectable, and labelled by what it
-                   does, so that opening the page and saving neither rewrites
-                   the row nor shows a volunteer a word they cannot place. #}
-                {% if row.type and row.type not in types | map(attribute='name') %}
+                {# Anything the dropdown does not already offer, including a
+                   blank. Without this a row whose type is empty renders with
+                   nothing selected, and a browser then posts the *first*
+                   option -- so opening the page to fix an unrelated date and
+                   pressing Save would silently mark an ordinary school day as
+                   No School. That is CLAUDE.md non-negotiable #3 word for
+                   word, arriving through the dropdown instead of through a
+                   lookup. The page is reachable in that state on purpose: a
+                   calendar that will not build still has to be editable.
+
+                   An alias is a real spelling and stays selectable, labelled
+                   by what it does. A blank is not, so it is disabled: the
+                   browser will not submit the form until a type is chosen. #}
+                {% if row.type not in types | map(attribute='name') %}
                 {% set known = resolved_type(row.type) %}
                 <option value="{{ row.type }}" selected
-                        title="Stored as &quot;{{ row.type }}&quot;, an older
-                               spelling of this.">
-                  {{ known.title if known else row.type }}
+                        {% if not known %}disabled{% endif %}
+                        title="Stored as &quot;{{ row.type }}&quot;.">
+                  {{ known.title if known else (row.type or "Choose one…") }}
                 </option>
                 {% endif %}
               </select>
@@ -294,7 +303,17 @@
         .map(el => el.value).join(' ').toLowerCase();
       // Hidden, never removed: a filtered-out row must still be submitted or
       // searching for one event and saving would delete every other one.
-      tr.hidden = needle !== '' && !hay.includes(needle);
+      const hide = needle !== '' && !hay.includes(needle);
+      tr.hidden = hide;
+      // A hidden control the browser considers invalid stops the whole form
+      // submitting, with the complaint only in the console -- so adding a
+      // blank row and then searching made Save look dead. The server checks
+      // these anyway; `required` is only here to catch them earlier.
+      tr.querySelectorAll('[required]').forEach(el => { el.dataset.req = '1'; });
+      tr.querySelectorAll('[data-req]').forEach(function (el) {
+        if (hide) { el.removeAttribute('required'); }
+        else { el.setAttribute('required', ''); }
+      });
     });
   });
 

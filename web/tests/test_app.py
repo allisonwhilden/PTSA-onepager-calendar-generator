@@ -921,3 +921,71 @@ def test_last_years_leftover_config_does_not_block_publishing(signed_in, store):
     assert label not in signed_in.get("/publish").text, (
         "an ended year is being reported as a reason not to publish")
     assert signed_in.post("/publish", follow_redirects=False).status_code == 303
+
+
+def test_a_blank_type_cannot_be_saved_as_no_school(signed_in, store):
+    """A row with no type rendered a dropdown with nothing selected, and a
+    browser posts the *first* option for one of those -- so opening the page to
+    fix an unrelated date and pressing Save marked an ordinary school day as No
+    School. That is CLAUDE.md non-negotiable #3 word for word, arriving through
+    the dropdown instead of through a lookup.
+
+    The page is reachable in that state on purpose: a calendar that will not
+    build still has to be editable. So the placeholder is disabled and the
+    select is required -- the browser refuses rather than choosing.
+    """
+    import re
+
+    rows = store.rows()
+    rows[1].type = ""
+    store.save(rows, "Someone", "left a type blank")
+
+    html = signed_in.get("/").text
+    i = int(re.search(r'name="row-(\d+)-label"[^>]*value="Labor Day"',
+                      html).group(1))
+    block = re.search(rf'<select name="row-{i}-type".*?</select>', html,
+                      re.S).group(0)
+
+    assert "required" in block.split(">")[0], "the browser would submit it blank"
+    selected = re.findall(r'<option value="([^"]*)"[^>]*selected', block)
+    assert selected == [""], f"a type was pre-chosen for a blank row: {selected}"
+    assert re.search(r'selected[^>]*disabled', block), (
+        "the blank placeholder is selectable, so it can be saved as-is")
+
+
+def test_restoring_past_a_new_year_removes_that_year(signed_in, store):
+    """`git checkout <sha> -- data` only copies paths present in that commit,
+    so a config added since survived the restore -- leaving a year with no rows,
+    which cannot build, which blocks publishing, and which the editor has no
+    page to delete. "Restoring undoes exactly this" has to be true.
+    """
+    before = store.head()
+    signed_in.post("/new-year/create", data={
+        "start_year": 2401, "first_day": "2401-08-30",
+        "last_day": "2402-06-15", "early_release_start": "2401-09-08",
+    }, follow_redirects=False)
+    assert (store.years_dir / "2401-02.toml").exists()
+
+    signed_in.post(f"/history/{before}/restore", follow_redirects=False)
+
+    assert not (store.years_dir / "2401-02.toml").exists(), (
+        "the restored-past year is still on disk")
+    assert signed_in.post("/publish", follow_redirects=False).status_code == 303
+
+
+def test_publishing_is_blocked_when_the_year_that_would_build_cannot(signed_in,
+                                                                     store):
+    """With no config for the year we are in, resolve_start_year falls back to
+    the newest there is -- and that is the year CI will build. Skipping it
+    because it has ended left the gate empty, so the editor said "the new PDF
+    is being built now" over data the workflow then rejected."""
+    rows = store.rows()
+    for row in rows:
+        row.date = row.date.replace("2400", "2399").replace("2401", "2400")
+        row.start_date = row.start_date.replace("2400", "2399")
+        row.end_date = row.end_date.replace("2400", "2399")
+    store.save(rows, "Someone", "moved every row out of the only year")
+
+    response = signed_in.post("/publish", follow_redirects=False)
+    assert response.status_code == 422, "it published a calendar CI will reject"
+    assert "blank" in response.text

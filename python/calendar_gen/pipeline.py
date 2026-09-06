@@ -36,9 +36,18 @@ class Blocked(Exception):
     which branches on those numbers -- keeps reading them the same way.
     """
 
-    def __init__(self, message: str, code: int = 1):
+    def __init__(self, message: str, code: int = 1, year=None, why: str = "",
+                 notices=None):
         super().__init__(message)
         self.code = code
+        #: What was known before the failure, so the caller can still say which
+        #: year it was building and which rows fell outside it. The blank-page
+        #: error is most often a half-finished year roll, and the row numbers
+        #: are the whole diagnosis -- printing only "the calendar would be
+        #: blank" leaves someone to find them by eye.
+        self.year = year
+        self.why = why
+        self.notices = notices or []
 
 
 @dataclass
@@ -200,10 +209,11 @@ def build(data_csv: Path, years_dir: Path, requested: int | None = None,
                       f"{year.last_printed_day})")
         else:
             reason = f"{name} has no event rows"
-        raise Blocked(f"{reason}, so the calendar would be blank.", code=1)
+        raise Blocked(f"{reason}, so the calendar would be blank.", code=1,
+                      year=year, why=why, notices=notices)
 
-    kwargs = {"generated_at": generated_at} if generated_at is not None else {}
-    html = render.render_html(year, months, important, **kwargs)
+    # render_html already treats None as today.
+    html = render.render_html(year, months, important, generated_at=generated_at)
 
     return Build(
         year=year, why=why, events=all_events, warnings=warnings,

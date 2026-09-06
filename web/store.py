@@ -29,6 +29,7 @@ import subprocess
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from .csvio import Row, read as read_rows, write as write_rows
 
@@ -39,6 +40,10 @@ YEARS_PATH = "data/years"
 #: the commit message instead -- see `save` -- because they do not have
 #: accounts, and inventing an email address for them would put a fake identity
 #: in permanent history.
+#: What time to show people. The PTSA is in one place; the container is in
+#: UTC. Override with TZ if this project is ever adopted elsewhere.
+DISPLAY_TZ = ZoneInfo(os.environ.get("TZ") or "America/Los_Angeles")
+
 BOT_NAME = "PTSA Calendar Editor"
 BOT_EMAIL = "calendar-editor@users.noreply.github.com"
 
@@ -68,7 +73,15 @@ class Version:
         return self.sha[:8]
 
     def when_local(self, tz: dt.tzinfo | None = None) -> str:
-        return self.when.astimezone(tz).strftime("%b %-d, %Y at %-I:%M %p")
+        """The time, where the PTSA is.
+
+        astimezone(None) is the *server's* local zone, which in a container is
+        UTC -- so a save made at 4:47pm was listed as 11:47pm, and an evening
+        one on the following day. The history page exists to answer "who
+        changed what, when", and it was answering the last part wrong.
+        """
+        return self.when.astimezone(tz or DISPLAY_TZ).strftime(
+            "%b %-d, %Y at %-I:%M %p")
 
 
 def _redact(text: str) -> str:
@@ -292,7 +305,19 @@ class Store:
             return self._commit(author, summary)
 
     def year_labels(self) -> list[str]:
-        return sorted(p.stem for p in self.years_dir.glob("*.toml"))
+        """The years the renderer will actually recognise.
+
+        Asked of school_year rather than globbed. available_years accepts only
+        canonical stems "so the year we report always names a file that
+        config_path() can actually open"; a looser glob here would put
+        2026-2027.toml in the year dropdown and then hand its start year to a
+        build that raises FileNotFoundError -- a permanent publish blocker from
+        a file the editor cannot delete.
+        """
+        from calendar_gen import school_year
+
+        return [school_year.label_for(y)
+                for y in school_year.available_years(self.years_dir)]
 
     def save(self, rows: list[Row], author: str, summary: str,
              base: str | None = None) -> str:
@@ -393,6 +418,13 @@ class Store:
                 subject = self._git("show", "-s", "--format=%s", sha)
             except StoreError as exc:
                 raise StoreError(f"No such version: {sha[:8]}") from exc
+            # Remove first, then restore. `git checkout <sha> -- data` only
+            # copies paths that exist in that commit, so anything added since
+            # survived -- and restoring past a "New year" left the new year's
+            # config on disk with its rows gone, which is a year that cannot
+            # build and that the editor has no page to delete. "Restoring
+            # undoes exactly this" has to be true.
+            self._git("rm", "-rq", "--ignore-unmatch", "--", "data")
             self._git("checkout", sha, "--", "data")
             date = dt.datetime.fromisoformat(when).strftime("%b %-d")
             return self._commit(

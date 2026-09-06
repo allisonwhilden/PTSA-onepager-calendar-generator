@@ -28,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from calendar_gen import event_types, pipeline
+from calendar_gen import school_year as school_year_mod
 
 from . import changes as changes_mod
 from . import csvio, newyear
@@ -83,7 +84,6 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
     app.state.secure_cookies = _bool_env("SECURE_COOKIES", True)
 
     templates = Jinja2Templates(directory=str(HERE / "templates"))
-    templates.env.globals["now"] = lambda: dt.datetime.now()
 
     def resolved_type(name: str):
         """The declared type a stored value means, or None if it means nothing.
@@ -188,6 +188,14 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         browser fetches the preview image, which used to arrive as a separate
         request with a fresh Build and an empty document cache.
         """
+        if year is None:
+            # Resolved before the lookup so the default year and its own number
+            # are one cache entry. The publish page asks for both -- once as
+            # None, once as an int -- and used to lay the same page out twice.
+            try:
+                year, _ = school_year_mod.resolve_start_year(store.years_dir)
+            except (FileNotFoundError, ValueError):
+                year = None
         sha = store.head()
         cache = app.state.build_cache
         if cache and next(iter(cache))[0] != sha:
@@ -337,9 +345,24 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
 
         current = school_year.current_start_year()
         problems = []
+
+        # The year the build actually resolves to is always gated, even when
+        # it is in the past. With no config for the year we are in,
+        # resolve_start_year falls back to the newest there is -- and that is
+        # the year CI's `--check --strict` will build. Skipping it because it
+        # has ended meant an empty gate, a green publish page, "the new PDF is
+        # being built now", and a workflow that rejected the same data.
+        try:
+            resolved, _why = school_year.resolve_start_year(store.years_dir)
+        except (FileNotFoundError, ValueError):
+            resolved = None
+
         for label in store.year_labels():
             year = start_year_of(label)
-            if year is None or year < current:
+            # Ended years are otherwise left alone: last year's config normally
+            # outlives its rows, and gating it blocked publishing on the real
+            # repository with no way for anyone to clear it.
+            if year is None or (year < current and year != resolved):
                 continue
             build, error, _ = build_current(store, year)
             if error:
@@ -557,6 +580,13 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
                                  (last_day, "last_day", "Last Day of School")):
             if when and (when, kind) not in already:
                 carried.append(csvio.Row(date=when, type=kind, label=name))
+                # Added as we go, or entering the same date for the first day
+                # and kindergarten's first day -- which the form invites, since
+                # "leave empty if it is the same day" is a hint, not a rule --
+                # writes both rows and spends two lines of the dates list on
+                # one day, on a page the rest of this repo fights to keep to
+                # one sheet.
+                already.add((when, kind))
 
         def validate(csv_path, years_dir):
             pipeline.build(csv_path, years_dir, start_year)
