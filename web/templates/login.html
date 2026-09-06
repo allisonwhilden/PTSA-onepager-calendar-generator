@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block chrome %}{% endblock %}
+{% block body %}
+<div class="centre panel">
+  <h1 style="font-size:19px;margin:0 0 4px">Horace Mann PTSA Calendar</h1>
+  <p class="hint" style="margin:0">Sign in to change the dates.</p>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="name">Your name</label>
+    <input id="name" name="name" autocomplete="name" placeholder="e.g. Allison">
+    <p class="hint">So the history says who changed what. There are no accounts.</p>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required autofocus>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <button class="btn primary" type="submit">Sign in</button>
+  </form>
+</div>
+{% endblock %}

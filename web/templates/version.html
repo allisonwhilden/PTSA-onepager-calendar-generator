@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block body %}
+<h2 style="font-size:20px">An earlier version</h2>
+
+<div class="panel">
+  <h2>What has changed since then</h2>
+  {% if changes %}
+  <ul class="changes">
+    {% for c in changes %}
+    <li class="{{ c.kind }}"><span class="label">{{ c.label }}</span>
+      {{ c.detail }}</li>
+    {% endfor %}
+  </ul>
+  <p class="count" style="margin-top:12px">Restoring undoes exactly this.</p>
+  {% else %}
+  <p class="count">Nothing. These are the dates you have now.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>The dates as they were ({{ rows | length }})</h2>
+  <table class="versions">
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td style="white-space:nowrap;width:150px">{{ row.first_day }}{% if row.is_range %} to {{ row.end_date }}{% endif %}</td>
+        <td style="width:150px" class="count">{{ row.type }}</td>
+        <td>{{ row.label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="actions">
+  {% if changes %}
+  <form method="post" action="/history/{{ sha }}/restore"
+        onsubmit="return confirm('Put these dates back? It becomes a draft you can review before publishing.')">
+    <button class="btn primary" type="submit">Restore these dates</button>
+  </form>
+  {% endif %}
+  <a class="btn" href="/history">Back to history</a>
+</div>
+{% endblock %}

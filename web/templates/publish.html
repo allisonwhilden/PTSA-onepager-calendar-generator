@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block body %}
+<h2 style="font-size:20px">Publish these changes?</h2>
+<p class="count">This replaces the calendar on the school website. It can be
+   undone from <a href="/history">History</a> at any time.</p>
+
+{% if blockers %}
+<div class="problem">
+  <h2>Not yet</h2>
+  <ul>{% for b in blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+  <p style="margin-bottom:0">Fix this on the dates page, then come back.</p>
+</div>
+<a class="btn primary" href="/">Back to the dates</a>
+
+{% elif not pending %}
+<div class="panel status live">
+  <span class="dot"></span>
+  <div>
+    <div class="what">Nothing to publish</div>
+    <div class="detail">What is saved here is already what families see.</div>
+  </div>
+</div>
+<a class="btn primary" href="/">Back to the dates</a>
+
+{% else %}
+<div class="panel">
+  <h2>{{ changes | length }} change{{ '' if changes | length == 1 else 's' }}</h2>
+  <ul class="changes">
+    {% for c in changes %}
+    <li class="{{ c.kind }}"><span class="label">{{ c.label }}</span>
+      {{ c.detail }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="panel">
+  <h2>What families will get</h2>
+  <img class="sheet" src="/preview.png"
+       alt="The calendar about to be published">
+</div>
+
+<div class="actions">
+  <form method="post" action="/publish">
+    <button class="btn publish" type="submit">Publish to the website</button>
+  </form>
+  <a class="btn" href="/">Not yet, back to the dates</a>
+</div>
+{% endif %}
+{% endblock %}

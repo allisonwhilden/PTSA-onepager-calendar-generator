@@ -1,0 +1,483 @@
+"""The editor, over HTTP.
+
+Driven through the real app with a real store on a real repository. The things
+worth testing here are the joins -- that a form post becomes a commit, that a
+broken calendar still lets you in to fix it, that publishing is a separate act
+from saving -- and every one of those is a join between parts that a mocked
+store would hold apart.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from web.app import create_app
+from web.auth import Auth, hash_password
+from web.store import Store
+
+PASSWORD = "correct horse"
+
+CSV = """\
+date,start_date,end_date,type,label,notes
+2400-08-31,,,first_day,First Day,
+2400-09-07,,,no_school,Labor Day,
+2400-10-15,,,ptsa_event,Curriculum Night,
+,2400-11-26,2400-11-27,no_school,Thanksgiving Break,
+2401-06-16,,,last_day,Last Day of School,
+"""
+
+TOML = """\
+[calendar]
+organization = "Test PTSA"
+
+[dates]
+early_release_start = 2400-09-09
+last_day = 2401-06-16
+boxed_days = [2400-08-31, 2401-06-16]
+"""
+
+
+def git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+@pytest.fixture
+def remote(tmp_path: Path) -> Path:
+    seed = tmp_path / "seed"
+    (seed / "data" / "years").mkdir(parents=True)
+    (seed / "data" / "all_events.csv").write_text(CSV)
+    (seed / "data" / "years" / "2400-01.toml").write_text(TOML)
+    git(seed, "init", "-q", "-b", "main")
+    git(seed, "config", "user.name", "Seed")
+    git(seed, "config", "user.email", "seed@example.com")
+    git(seed, "add", "-A")
+    git(seed, "commit", "-qm", "initial")
+    bare = tmp_path / "remote.git"
+    subprocess.run(["git", "clone", "--bare", "-q", str(seed), str(bare)], check=True)
+    return bare
+
+
+@pytest.fixture
+def store(remote: Path, tmp_path: Path) -> Store:
+    return Store.clone(str(remote), tmp_path / "clone")
+
+
+@pytest.fixture
+def client(store: Store) -> TestClient:
+    app = create_app(store=store,
+                     auth=Auth(password_hash=hash_password(PASSWORD),
+                               secret="test-secret"))
+    app.state.secure_cookies = False
+    return TestClient(app)
+
+
+@pytest.fixture
+def signed_in(client: TestClient) -> TestClient:
+    client.post("/login", data={"password": PASSWORD, "name": "Allison"},
+                follow_redirects=False)
+    return client
+
+
+def form_from(html: str) -> dict[str, str]:
+    """Every input and selected option in the dates form, as the browser would
+    post it. Keeps these tests honest about the real field names."""
+    fields = {}
+    for name, value in re.findall(
+            r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"', html):
+        fields[name] = value
+    for name in re.findall(r'<input[^>]*name="(row-\d+-label)"(?![^>]*value)', html):
+        fields.setdefault(name, "")
+    for block in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>',
+                            html, re.S):
+        name, body = block
+        chosen = re.search(r'value="([^"]+)"[^>]*selected', body)
+        fields[name] = chosen.group(1) if chosen else ""
+    return fields
+
+
+# --- getting in ------------------------------------------------------------
+
+def test_the_editor_needs_the_password(client):
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/login")
+
+
+def test_a_wrong_password_does_not_let_you_in(client):
+    response = client.post("/login", data={"password": "guess"},
+                           follow_redirects=False)
+    assert response.status_code == 200
+    assert "not right" in response.text
+    assert client.get("/", follow_redirects=False).status_code == 303
+
+
+def test_the_right_password_lets_you_in(client):
+    response = client.post("/login", data={"password": PASSWORD, "name": "Allison"},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert client.get("/").status_code == 200
+
+
+def test_repeated_wrong_guesses_get_shut_out(client):
+    for _ in range(8):
+        client.post("/login", data={"password": "guess"}, follow_redirects=False)
+    response = client.post("/login", data={"password": PASSWORD},
+                           follow_redirects=False)
+    assert response.status_code == 429, "the rate limit did not engage"
+    assert "Too many" in response.text
+
+
+def test_the_password_is_never_in_a_page(signed_in):
+    assert PASSWORD not in signed_in.get("/").text
+
+
+# --- the dates page --------------------------------------------------------
+
+def test_the_dates_page_lists_every_row(signed_in):
+    html = signed_in.get("/").text
+    for label in ("First Day", "Labor Day", "Curriculum Night",
+                  "Thanksgiving Break", "Last Day of School"):
+        assert label in html
+
+
+def test_the_type_dropdown_comes_from_the_registry(signed_in):
+    """Offering a type the renderer does not know would put an unbuildable
+    calendar one click away."""
+    from calendar_gen import event_types
+    html = signed_in.get("/").text
+    for kind in event_types.choices():
+        assert f'value="{kind.name}"' in html
+    assert "Just listed" in html, "the human labels are not being shown"
+
+
+def test_a_date_range_shows_in_both_boxes(signed_in):
+    html = signed_in.get("/").text
+    fields = form_from(html)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Thanksgiving Break")
+    assert fields[f"row-{i}-from"] == "2400-11-26"
+    assert fields[f"row-{i}-to"] == "2400-11-27"
+
+
+# --- saving ----------------------------------------------------------------
+
+def test_saving_a_moved_date_commits_it(signed_in, store):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    moved = [r for r in store.rows() if r.label == "Curriculum Night"]
+    assert [r.date for r in moved] == ["2400-10-22"]
+
+
+def test_the_commit_says_what_happened_in_plain_words(signed_in, store):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    latest = store.history()[0]
+    assert latest.author == "Allison"
+    assert latest.summary == "Curriculum Night: moved from Oct 15 to Oct 22"
+
+
+def test_a_deleted_row_goes(signed_in, store):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20) if fields.get(f"row-{n}-label") == "Labor Day")
+    fields[f"row-{i}-deleted"] = "1"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert not any(r.label == "Labor Day" for r in store.rows())
+    assert store.history()[0].summary == "Labor Day: removed from Sep 7"
+
+
+def test_an_added_row_arrives(signed_in, store):
+    fields = form_from(signed_in.get("/").text)
+    fields.update({
+        "row-99-from": "2400-12-05", "row-99-to": "",
+        "row-99-type": "ptsa_event", "row-99-label": "Winter Social",
+        "row-99-notes": "", "row-99-deleted": "0",
+    })
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert any(r.label == "Winter Social" and r.date == "2400-12-05"
+               for r in store.rows())
+
+
+def test_a_one_day_range_is_saved_as_a_single_date(signed_in, store):
+    """Same From and To means one day. Storing it as a range would earn a
+    validation warning for something the person did not do wrong."""
+    fields = form_from(signed_in.get("/").text)
+    fields.update({
+        "row-99-from": "2400-12-05", "row-99-to": "2400-12-05",
+        "row-99-type": "ptsa_event", "row-99-label": "Winter Social",
+        "row-99-notes": "", "row-99-deleted": "0",
+    })
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    row = next(r for r in store.rows() if r.label == "Winter Social")
+    assert (row.date, row.start_date, row.end_date) == ("2400-12-05", "", "")
+
+
+def test_an_empty_added_row_is_ignored(signed_in, store):
+    """Someone clicks Add, changes their mind, saves. That must not become a
+    validation error about a blank line they cannot see."""
+    before = len(store.rows())
+    fields = form_from(signed_in.get("/").text)
+    fields.update({"row-99-from": "", "row-99-to": "", "row-99-type": "ptsa_event",
+                   "row-99-label": "", "row-99-notes": "", "row-99-deleted": "0"})
+    signed_in.post("/save", data=fields, follow_redirects=False)
+    assert len(store.rows()) == before
+
+
+def test_the_notes_column_survives_a_save(signed_in, store, remote, tmp_path):
+    """Nothing in the editor shows the notes, so nothing in the editor may lose
+    them -- they carry the provenance of the district dates."""
+    seed = Store.clone(str(remote), tmp_path / "seeder")
+    rows = seed.rows()
+    rows[0].notes = "Verified against the district PDF, revision 8/2400."
+    seed.save(rows, "Seeder", "added a note")
+    seed.publish()
+
+    fields = form_from(signed_in.get("/").text)
+    fields["row-0-label"] = "First Day of School"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert any("Verified against the district PDF" in r.notes
+               for r in store.rows())
+
+
+# --- publishing ------------------------------------------------------------
+
+def test_saving_does_not_publish(signed_in, store, remote):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert "2400-10-22" not in git(remote, "show", "main:data/all_events.csv")
+    assert store.has_unpublished_changes() is True
+
+
+def test_the_page_says_there_are_unpublished_changes(signed_in):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    html = signed_in.get("/").text
+    assert "Unpublished changes" in html
+    assert "moved from Oct 15 to Oct 22" in html
+
+
+def test_publishing_sends_it(signed_in, store, remote):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    response = signed_in.post("/publish", follow_redirects=False)
+    assert response.status_code == 303
+
+    assert "2400-10-22" in git(remote, "show", "main:data/all_events.csv")
+    assert store.has_unpublished_changes() is False
+
+
+def test_the_publish_page_shows_the_changes_before_you_commit_to_them(signed_in):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    html = signed_in.get("/publish").text
+    assert "Curriculum Night" in html
+    assert "moved from Oct 15 to Oct 22" in html
+
+
+def test_a_calendar_that_will_not_fit_cannot_be_published(signed_in, store):
+    """The button is disabled, but a stale page must not get past it either."""
+    rows = store.rows()
+    for n in range(70):
+        rows.append(type(rows[0])(
+            date=f"2400-09-{n % 28 + 1:02d}", type="ptsa_event",
+            label=f"Fundraiser planning meeting number {n}"))
+    store.save(rows, "Allison", "far too many")
+
+    response = signed_in.post("/publish", follow_redirects=False)
+    assert response.status_code == 422
+    assert "fit on one" in response.text
+    assert store.has_unpublished_changes() is True, "it published anyway"
+
+
+# --- when things are broken ------------------------------------------------
+
+def test_a_broken_calendar_still_lets_you_in_to_fix_it(signed_in, store):
+    """The state someone needs the editor for most is the one where the
+    calendar will not build. Refusing to load would leave them with no way in
+    but the CSV."""
+    rows = store.rows()
+    rows[0].type = "not_a_real_type"
+    store.save(rows, "Someone", "broke it")
+
+    response = signed_in.get("/")
+    assert response.status_code == 200
+    assert "cannot be built" in response.text
+    assert "not_a_real_type" in response.text
+    assert "First Day" in response.text, "the rows are still editable"
+
+
+def test_a_broken_calendar_cannot_be_published(signed_in, store):
+    rows = store.rows()
+    rows[0].type = "not_a_real_type"
+    store.save(rows, "Someone", "broke it")
+
+    assert signed_in.post("/publish", follow_redirects=False).status_code == 422
+    assert store.has_unpublished_changes() is True
+
+
+def test_a_broken_calendar_can_be_fixed_from_the_page(signed_in, store):
+    rows = store.rows()
+    rows[0].type = "not_a_real_type"
+    store.save(rows, "Someone", "broke it")
+
+    fields = form_from(signed_in.get("/").text)
+    fields["row-0-type"] = "first_day"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert "cannot be built" not in signed_in.get("/").text
+
+
+# --- preview ---------------------------------------------------------------
+
+def test_the_preview_is_a_real_pdf(signed_in):
+    response = signed_in.get("/preview.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_the_preview_is_marked_as_a_draft_when_downloaded(signed_in):
+    """It gets emailed around for review. The filename is the only thing that
+    travels with it."""
+    disposition = signed_in.get("/preview.pdf").headers["content-disposition"]
+    assert "DRAFT-" in disposition
+
+
+def test_the_preview_shows_what_was_saved(signed_in, store):
+    import pypdf, io
+    fields = form_from(signed_in.get("/").text)
+    fields.update({"row-99-from": "2400-12-05", "row-99-to": "",
+                   "row-99-type": "ptsa_event", "row-99-label": "Winter Social",
+                   "row-99-notes": "", "row-99-deleted": "0"})
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    pdf = pypdf.PdfReader(io.BytesIO(signed_in.get("/preview.pdf").content))
+    assert "Winter Social" in pdf.pages[0].extract_text()
+
+
+def test_the_preview_needs_the_password(client):
+    assert client.get("/preview.pdf", follow_redirects=False).status_code == 303
+
+
+# --- history ---------------------------------------------------------------
+
+def test_history_lists_the_saves(signed_in):
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    html = signed_in.get("/history").text
+    assert "Allison" in html
+    assert "moved from Oct 15 to Oct 22" in html
+
+
+def test_restoring_puts_the_old_dates_back_as_a_draft(signed_in, store, remote):
+    original = store.head()
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+    signed_in.post("/publish", follow_redirects=False)
+
+    response = signed_in.post(f"/history/{original}/restore", follow_redirects=False)
+    assert response.status_code == 303
+
+    assert any(r.date == "2400-10-15" for r in store.rows())
+    assert store.has_unpublished_changes() is True, (
+        "a restore must not publish itself")
+    assert "2400-10-22" in git(remote, "show", "main:data/all_events.csv")
+
+
+def test_looking_at_a_version_says_what_changed_since(signed_in, store):
+    original = store.head()
+    fields = form_from(signed_in.get("/").text)
+    i = next(n for n in range(20)
+             if fields.get(f"row-{n}-label") == "Curriculum Night")
+    fields[f"row-{i}-from"] = "2400-10-22"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    html = signed_in.get(f"/history/{original}").text
+    # Read forwards, as "what has changed since then" -- which is what the
+    # heading says and what restoring would undo. Stating it the other way
+    # round would mean the same list read differently on two pages.
+    assert "moved from Oct 15 to Oct 22" in html
+    assert "Restoring undoes exactly this" in html
+
+
+def test_an_unknown_version_says_so_rather_than_crashing(signed_in):
+    response = signed_in.get(f"/history/{'0' * 40}")
+    assert response.status_code == 404
+    assert "went wrong" in response.text
+
+
+def test_history_needs_the_password(client):
+    assert client.get("/history", follow_redirects=False).status_code == 303
+
+
+# --- operational -----------------------------------------------------------
+
+def test_healthz_needs_no_password(client):
+    """The host pings this to decide whether the container is alive."""
+    assert client.get("/healthz").json() == {"ok": True}
+
+
+def test_an_alias_type_is_shown_by_what_it_does_and_not_rewritten(signed_in, store):
+    """Seven shipped rows are spelled with an accepted alias, not a mistake.
+
+    Showing the raw alias makes those rows look broken to someone who has never
+    heard of it. Rewriting them to the canonical spelling would put seven type
+    changes into the diff of an unrelated edit. Neither is acceptable, so the
+    option reads as what the type does and keeps the value the file had.
+    """
+    rows = store.rows()
+    rows[0].type = "grades_due"          # an alias for informational
+    store.save(rows, "Seeder", "used an alias")
+
+    html = signed_in.get("/").text
+    assert '<option value="grades_due" selected' in html
+    assert "Just listed" in html
+
+    fields = form_from(html)
+    assert fields["row-0-type"] == "grades_due"
+    fields["row-0-label"] = "Renamed but same type"
+    signed_in.post("/save", data=fields, follow_redirects=False)
+
+    assert store.rows()[0].type == "grades_due", "the alias was rewritten"
+    assert "changed from" not in store.history()[0].summary

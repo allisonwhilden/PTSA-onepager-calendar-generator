@@ -1,0 +1,260 @@
+/* The editor's styling.
+
+   Nothing to do with the printed calendar -- that page's CSS lives in
+   python/styles/calendar.css and is tuned for paper. This one is for a person
+   at a laptop or on a phone in a school corridor, and the priority is that
+   nobody has to wonder which button is the one that sends it to families. */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #5c5c5c;
+  --line: #d6d6d6;
+  --bg: #fbfbfa;
+  --panel: #fff;
+  --accent: #C40A0C;          /* the PTSA red the calendar already uses */
+  --ok: #16663d;
+  --warn: #8a5300;
+  --warn-bg: #fff8e6;
+  --danger-bg: #fdeceb;
+  --radius: 7px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+header.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+header.top h1 { font-size: 17px; margin: 0; font-weight: 700; }
+header.top h1 .accent { color: var(--accent); }
+header.top nav { display: flex; gap: 14px; margin-left: auto; align-items: center; }
+header.top nav a { color: var(--muted); text-decoration: none; }
+header.top nav a:hover { color: var(--ink); text-decoration: underline; }
+
+main { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+h2 { font-size: 16px; margin: 0 0 10px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* --- the state banner: the first thing to read on the page --------------- */
+
+.status { display: flex; gap: 12px; align-items: flex-start; }
+.status .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  margin-top: 6px; flex: 0 0 auto;
+}
+.status.live .dot { background: var(--ok); }
+.status.draft .dot { background: var(--warn); }
+.status.draft { background: var(--warn-bg); border-color: #e8d9ae; }
+.status .what { font-weight: 600; }
+.status .detail { color: var(--muted); font-size: 14px; }
+
+.problem {
+  background: var(--danger-bg);
+  border: 1px solid #f0c4c0;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.problem h2 { color: #96201c; }
+.problem pre {
+  white-space: pre-wrap;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin: 8px 0 0;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  padding: 8px 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover { background: #f2f2f1; }
+.btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn.primary:hover { background: #000; }
+.btn.publish { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.publish:hover { background: #0f4f2d; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.btn.link { border: 0; background: none; color: var(--muted); padding: 4px; }
+.btn.link:hover { color: var(--accent); text-decoration: underline; }
+
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions .spacer { margin-left: auto; }
+
+/* --- the dates table ----------------------------------------------------- */
+
+.dates { width: 100%; border-collapse: collapse; }
+.dates th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.dates td { padding: 4px 6px; border-bottom: 1px solid #efefee; vertical-align: top; }
+.dates tr.gone { opacity: .4; }
+.dates tr.gone input, .dates tr.gone select { text-decoration: line-through; }
+
+.dates input[type="date"], .dates input[type="text"], .dates select {
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+.dates input:focus, .dates select:focus {
+  outline: 2px solid #9fc3e8;
+  outline-offset: -1px;
+  border-color: #7ba9d6;
+}
+/* The name is what families read, so it gets whatever is left rather than
+   whatever the date pickers do not want. It was the narrowest column and
+   every label was truncated -- "Kindergar", "Curriculur" -- which made the
+   one field worth proof-reading the one you could not read. */
+.col-date { width: 132px; }
+.col-type { width: 158px; }
+.col-act  { width: 34px; }
+.dates th:nth-child(4), .dates td.label-cell { min-width: 260px; }
+.dates td.act { text-align: right; }
+
+.filter { margin-bottom: 12px; display: flex; gap: 10px; align-items: center; }
+.filter input {
+  font: inherit; padding: 7px 10px; border: 1px solid var(--line);
+  border-radius: var(--radius); flex: 1; max-width: 320px;
+}
+.count { color: var(--muted); font-size: 14px; }
+
+/* --- preview ------------------------------------------------------------- */
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 400px;
+         gap: 16px; align-items: start; }
+.preview { position: sticky; top: 76px; }
+.preview img.sheet, img.sheet {
+  width: 100%; border: 1px solid var(--line); border-radius: 5px;
+  background: #fff; display: block;
+}
+.preview .note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+/* --- change lists -------------------------------------------------------- */
+
+ul.changes { list-style: none; padding: 0; margin: 0; }
+ul.changes li {
+  padding: 7px 0 7px 22px;
+  border-bottom: 1px solid #efefee;
+  position: relative;
+}
+ul.changes li::before {
+  position: absolute; left: 0; top: 7px; font-weight: 700; width: 16px;
+}
+ul.changes li.added::before   { content: "+"; color: var(--ok); }
+ul.changes li.removed::before { content: "\2212"; color: var(--accent); }
+ul.changes li.moved::before   { content: "\2192"; color: var(--warn); }
+ul.changes li.edited::before  { content: "\00B7"; color: var(--muted); }
+ul.changes .label { font-weight: 600; }
+
+/* --- history ------------------------------------------------------------- */
+
+.versions { width: 100%; border-collapse: collapse; }
+.versions td, .versions th { padding: 9px 8px; border-bottom: 1px solid #efefee; }
+.versions th {
+  text-align: left; font-size: 12px; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted);
+}
+.tag {
+  font-size: 12px; padding: 2px 8px; border-radius: 20px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.tag.live { background: #e8f5ee; border-color: #b6dcc6; color: var(--ok); }
+
+/* --- login --------------------------------------------------------------- */
+
+.centre { max-width: 380px; margin: 12vh auto; }
+.centre label { display: block; margin: 14px 0 5px; font-weight: 600; font-size: 14px; }
+.centre input {
+  font: inherit; width: 100%; padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.centre .btn { width: 100%; margin-top: 18px; }
+.centre .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.centre .error {
+  background: var(--danger-bg); border: 1px solid #f0c4c0;
+  border-radius: var(--radius); padding: 10px 12px; margin-top: 14px; font-size: 14px;
+}
+
+/* --- phones -------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .preview { position: static; }
+  .dates thead { display: none; }
+  .dates tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .dates td { border: 0; padding: 0; }
+  .dates td.label-cell, .dates td.notes-cell { grid-column: 1 / -1; }
+  /* On a phone the header row is gone, so a bare x in the middle of a card
+     is a button with no name. Give it one. */
+  .dates td.act { grid-column: 1 / -1; text-align: left; }
+  .dates td.act::before { content: none; }
+  .dates td.act .btn.link::after { content: " Remove this date"; }
+  .dates td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .col-date, .col-type, .col-act { width: auto; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ececec; --muted: #a3a3a3; --line: #3a3a3a;
+    --bg: #191919; --panel: #222; --accent: #ff6b6b;
+    --ok: #5cc98e; --warn: #e0b062; --warn-bg: #2e2716; --danger-bg: #331d1c;
+  }
+  .dates input, .dates select, .centre input { background: #2b2b2b; color: var(--ink); }
+  .btn.primary { background: #ececec; color: #191919; border-color: #ececec; }
+  .dates td { border-bottom-color: #2e2e2e; }
+  .preview iframe { background: #2b2b2b; }
+}

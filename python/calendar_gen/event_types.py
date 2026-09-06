@@ -26,6 +26,19 @@ class EventType:
     #: Prefix used when the event is listed in Important Dates.
     label_prefix: str = ""
 
+    #: What to call this type to someone choosing it in the editor, and a
+    #: sentence saying what it does to the page. Deliberately fuller than the
+    #: printed legend, which is hand-set for a page with no room to spare and
+    #: which only names the types that draw something. Both exist because they
+    #: are read by different people in different places; this one is here so
+    #: that adding a type cannot leave the editor offering a stale list.
+    human: str = ""
+    hint: str = ""
+
+    @property
+    def title(self) -> str:
+        return self.human or self.name.replace("_", " ").title()
+
     @property
     def is_invisible(self) -> bool:
         """True when this type leaves no trace on the calendar grid.
@@ -40,19 +53,34 @@ class EventType:
 REGISTRY: dict[str, EventType] = {
     t.name: t
     for t in (
-        EventType("no_school", fill="no_school"),
-        EventType("half_day", fill="half_day"),
-        EventType("early_release", fill="early_release"),
-        EventType("closure_possible", fill="closure_possible"),
+        EventType("no_school", fill="no_school", human="No school",
+                  hint="Filled black on the grid. Holidays, breaks, staff days."),
+        EventType("half_day", fill="half_day", human="Half day",
+                  hint="Filled grey. Conference days and the last day."),
+        EventType("early_release", fill="early_release",
+                  human="Early release (one-off)",
+                  hint="Bold. Ordinary Wednesdays are marked automatically -- "
+                       "use this only for an early release that is not one."),
+        EventType("closure_possible", fill="closure_possible",
+                  human="Possible make-up day",
+                  hint="Hatched. Days school runs only if snow days were used."),
         # Listed dates, drawn with nothing of their own. The first/last-day box
         # is a year-level mark set in the year config -- see boxed_days -- not a
         # property of these types.
-        EventType("first_day"),
-        EventType("last_day"),
-        EventType("ptsa_event", circle=True, label_prefix="PTSA: "),
+        EventType("first_day", human="First day",
+                  hint="Listed in the dates. The box on the grid comes from "
+                       "boxed_days in the year config, not from this type."),
+        EventType("last_day", human="Last day",
+                  hint="Listed in the dates. Also used for quarter and "
+                       "semester ends, which are not year boundaries."),
+        EventType("ptsa_event", circle=True, label_prefix="PTSA: ",
+                  human="PTSA event",
+                  hint="Red circle on the grid, red in the dates list."),
         # Listed in Important Dates, but changes nothing about the school day.
         # Grades-due dates, deadlines, community events on an ordinary day.
-        EventType("informational"),
+        EventType("informational", human="Just listed",
+                  hint="Appears in the dates list and changes nothing on the "
+                       "grid. The day gets an asterisk so the grid points at it."),
     )
 }
 
@@ -84,6 +112,15 @@ def resolve(raw: str) -> EventType:
     except KeyError:
         raise UnknownEventType(raw) from None
 
+
+
+def choices() -> list[EventType]:
+    """The types to offer in the editor, in the order they are declared.
+
+    Only the canonical ones. The aliases exist so that spellings already in the
+    CSV keep working; offering them as new choices would spread them further.
+    """
+    return list(REGISTRY.values())
 
 
 def known_names() -> list[str]:

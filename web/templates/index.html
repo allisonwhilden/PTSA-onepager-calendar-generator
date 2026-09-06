@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block body %}
+
+{# The state of the calendar, before anything else on the page. Someone
+   arriving to fix one date needs to know in one glance whether what they are
+   looking at is live or is a draft somebody left half-finished. #}
+{% if pending %}
+<div class="panel status draft">
+  <span class="dot"></span>
+  <div>
+    <div class="what">Unpublished changes</div>
+    <div class="detail">
+      {{ changes | length }} change{{ '' if changes | length == 1 else 's' }}
+      saved but not sent to families yet.
+      <a href="/publish">Review and publish</a>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="panel status live">
+  <span class="dot"></span>
+  <div>
+    <div class="what">Published</div>
+    <div class="detail">These are the dates families see. Changes you save here
+      are not sent until you publish them.</div>
+  </div>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="problem">
+  <h2>The calendar cannot be built right now</h2>
+  <p>Fix the dates below and it will come back. Nothing is published while this
+     is showing.</p>
+  <pre>{{ error }}</pre>
+</div>
+{% elif build and build.publish_problems() %}
+<div class="problem">
+  <h2>This will not print correctly</h2>
+  <ul>{% for p in build.publish_problems() %}<li>{{ p }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if build and build.warnings %}
+<div class="panel" style="border-color:#e8d9ae;background:var(--warn-bg)">
+  <h2>Worth a look</h2>
+  <ul>{% for w in build.warnings %}<li>{{ w.message }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="/save" id="dates-form">
+<input type="hidden" name="base" value="{{ base }}">
+
+<div class="split">
+  <div>
+    <div class="panel">
+      <div class="actions" style="margin-bottom:12px">
+        <h2 style="margin:0">
+          {{ build.label if build else 'School year' }} dates
+        </h2>
+        <span class="count" id="row-count">{{ rows | length }} dates</span>
+        <span class="spacer"></span>
+        <input name="name" value="{{ name }}" placeholder="Your name"
+               style="font:inherit;padding:7px 10px;border:1px solid var(--line);
+                      border-radius:7px;width:150px">
+        <button class="btn primary" type="submit">Save changes</button>
+      </div>
+
+      <div class="filter">
+        <input id="search" type="search" placeholder="Find a date or an event"
+               autocomplete="off">
+        <button class="btn small" type="button" id="add-row">+ Add a date</button>
+      </div>
+
+      <table class="dates">
+        <thead>
+          <tr>
+            <th class="col-date">From</th>
+            <th class="col-date">To
+              <span style="font-weight:400;text-transform:none"
+                    title="Leave this empty for a single day">(optional)</span></th>
+            <th class="col-type">What kind</th>
+            <th>Name families will see</th>
+            <th class="col-act"></th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          {% for row in rows %}
+          <tr data-row>
+            <td data-label="From">
+              <input type="date" name="row-{{ loop.index0 }}-from"
+                     value="{{ row.first_day }}">
+            </td>
+            <td data-label="To">
+              <input type="date" name="row-{{ loop.index0 }}-to"
+                     value="{{ row.end_date if row.is_range else '' }}">
+            </td>
+            <td data-label="What kind">
+              <select name="row-{{ loop.index0 }}-type">
+                {% for t in types %}
+                <option value="{{ t.name }}"
+                        title="{{ t.hint }}"
+                        {% if row.type == t.name %}selected{% endif %}>
+                  {{ t.title }}
+                </option>
+                {% endfor %}
+                {# A spelling already in the file that is an alias rather than a
+                   canonical name. Kept selectable, and labelled by what it
+                   does, so that opening the page and saving neither rewrites
+                   the row nor shows a volunteer a word they cannot place. #}
+                {% if row.type and row.type not in types | map(attribute='name') %}
+                {% set known = resolved_type(row.type) %}
+                <option value="{{ row.type }}" selected
+                        title="Stored as &quot;{{ row.type }}&quot;, an older
+                               spelling of this.">
+                  {{ known.title if known else row.type }}
+                </option>
+                {% endif %}
+              </select>
+            </td>
+            <td data-label="Name" class="label-cell">
+              <input type="text" name="row-{{ loop.index0 }}-label"
+                     value="{{ row.label }}">
+              <input type="hidden" name="row-{{ loop.index0 }}-notes"
+                     value="{{ row.notes }}">
+              <input type="hidden" name="row-{{ loop.index0 }}-deleted" value="0">
+            </td>
+            <td class="act">
+              <button class="btn link" type="button" data-remove
+                      title="Remove this date" aria-label="Remove this date">
+                &times;
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="preview">
+    <div class="panel">
+      <h2>How it will print</h2>
+      {% if build %}
+      <img class="sheet" src="/preview.png"
+           alt="The calendar as it will print">
+      <p class="note">
+        This is the draft, built by the same code that makes the real PDF.
+        It updates when you save.
+        <a href="/preview.pdf" target="_blank" rel="noopener">Open full size</a>
+      </p>
+      {% else %}
+      <p class="note">No preview while the calendar cannot be built.</p>
+      {% endif %}
+    </div>
+
+    {% if pending %}
+    <div class="panel">
+      <h2>Waiting to be published</h2>
+      <ul class="changes">
+        {% for c in changes[:8] %}
+        <li class="{{ c.kind }}"><span class="label">{{ c.label }}</span>
+          {{ c.detail }}</li>
+        {% endfor %}
+      </ul>
+      {% if changes | length > 8 %}
+      <p class="note">and {{ changes | length - 8 }} more</p>
+      {% endif %}
+      <p style="margin:14px 0 0"><a class="btn publish" href="/publish">
+        Review and publish</a></p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Deliberately small and dependency-free. Everything that matters -- what is
+// valid, what the page looks like, what gets published -- is decided by Python
+// on the server. This only adds and hides rows.
+(function () {
+  const tbody = document.getElementById('rows');
+  const form = document.getElementById('dates-form');
+  const count = document.getElementById('row-count');
+
+  // Row names are indexed by position, and the index has to stay unique when
+  // rows are added or removed. Counting from the number already on the page
+  // means a new row can never collide with an existing one.
+  let next = tbody.querySelectorAll('[data-row]').length;
+
+  function liveRows() {
+    return [...tbody.querySelectorAll('[data-row]')]
+      .filter(tr => !tr.classList.contains('gone'));
+  }
+  function retally() {
+    const n = liveRows().length;
+    count.textContent = n + (n === 1 ? ' date' : ' dates');
+  }
+
+  tbody.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-remove]');
+    if (!button) return;
+    const row = button.closest('[data-row]');
+    const flag = row.querySelector('input[name$="-deleted"]');
+    // Marked rather than detached, so the row is still in the form and the
+    // server sees a deliberate delete instead of a row that silently vanished.
+    const removing = flag.value === '0';
+    flag.value = removing ? '1' : '0';
+    row.classList.toggle('gone', removing);
+    button.innerHTML = removing ? '&#8630;' : '&times;';
+    button.title = removing ? 'Keep this date after all' : 'Remove this date';
+    retally();
+  });
+
+  document.getElementById('add-row').addEventListener('click', function () {
+    const i = next++;
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-row', '');
+    tr.innerHTML = `
+      <td data-label="From"><input type="date" name="row-${i}-from"></td>
+      <td data-label="To"><input type="date" name="row-${i}-to"></td>
+      <td data-label="What kind">
+        <select name="row-${i}-type">${document.querySelector('#rows select').innerHTML}</select>
+      </td>
+      <td data-label="Name" class="label-cell">
+        <input type="text" name="row-${i}-label" placeholder="What is it called?">
+        <input type="hidden" name="row-${i}-notes" value="">
+        <input type="hidden" name="row-${i}-deleted" value="0">
+      </td>
+      <td class="act">
+        <button class="btn link" type="button" data-remove
+                title="Remove this date">&times;</button>
+      </td>`;
+    tbody.appendChild(tr);
+    tr.querySelector('input').focus();
+    retally();
+  });
+
+  document.getElementById('search').addEventListener('input', function (event) {
+    const needle = event.target.value.trim().toLowerCase();
+    tbody.querySelectorAll('[data-row]').forEach(function (tr) {
+      const hay = [...tr.querySelectorAll('input, select')]
+        .map(el => el.value).join(' ').toLowerCase();
+      // Hidden, never removed: a filtered-out row must still be submitted or
+      // searching for one event and saving would delete every other one.
+      tr.hidden = needle !== '' && !hay.includes(needle);
+    });
+  });
+
+  let dirty = false;
+  form.addEventListener('input', () => { dirty = true; });
+  form.addEventListener('submit', () => { dirty = false; });
+  window.addEventListener('beforeunload', function (event) {
+    if (dirty) event.preventDefault();
+  });
+
+  retally();
+})();
+</script>
+{% endblock %}

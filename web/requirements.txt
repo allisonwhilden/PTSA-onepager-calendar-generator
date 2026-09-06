@@ -1,0 +1,17 @@
+# The editor. The renderer's own dependencies are in python/requirements.txt
+# and are installed alongside these -- the editor imports calendar_gen rather
+# than reimplementing any of it, so it needs both.
+
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32     # form posts
+itsdangerous==2.2.0          # signed session cookies
+argon2-cffi==25.1.0          # the shared password's hash
+
+# Rasterises the preview. An iframe of a PDF shows nothing on most phones and
+# a black rectangle in some embedded viewers, and someone checking a date
+# should not have to know which browser they are on.
+pypdfium2==5.13.0
+
+# Tests
+httpx==0.28.1                # what fastapi's TestClient drives
