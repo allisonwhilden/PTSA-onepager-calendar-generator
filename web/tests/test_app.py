@@ -891,3 +891,33 @@ def test_the_kindergarten_date_survives_a_validation_error(signed_in):
     })
     assert response.status_code == 400
     assert 'value="2401-09-02"' in response.text
+
+
+def test_last_years_leftover_config_does_not_block_publishing(signed_in, store):
+    """After a year roll the old config is normally still on disk while its
+    rows are not, so it no longer builds -- and never will again, because
+    resolve_start_year only moves forward.
+
+    Gating it blocked publishing on the real repository permanently, with no
+    way for anyone to clear it: the fix would have been deleting a file the
+    editor has no page for. Found by running the editor against the shipped
+    data rather than the fixture.
+    """
+    from calendar_gen import school_year
+
+    # A year that has certainly ended, with no rows anywhere near it.
+    past = school_year.current_start_year() - 3
+    label = school_year.label_for(past)
+    (store.years_dir / f"{label}.toml").write_text(
+        f'[calendar]\norganization = "T"\n\n[dates]\n'
+        f'early_release_start = {past}-09-09\nlast_day = {past + 1}-06-16\n'
+        f'boxed_days = [{past}-08-31, {past + 1}-06-16]\n')
+
+    rows = store.rows()
+    rows.append(type(rows[0])(date="2400-12-05", type="ptsa_event",
+                              label="Winter Social"))
+    store.save(rows, "Allison", "something to publish")
+
+    assert label not in signed_in.get("/publish").text, (
+        "an ended year is being reported as a reason not to publish")
+    assert signed_in.post("/publish", follow_redirects=False).status_code == 303

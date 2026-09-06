@@ -316,18 +316,31 @@ def create_app(store: Store | None = None, auth: Auth | None = None) -> FastAPI:
         )
 
     def _blockers(store: Store):
-        """Everything wrong with any configured year, not just the live one.
+        """Everything wrong with a year that is, or will become, the live one.
 
         Publishing pushes the whole CSV, and on 1 August the scheduled build
         switches which year `calendar.pdf` means. A staged year that does not
-        build would sail past a gate that only ever looked at today's year, sit
-        on main with CI green, and then take the published calendar down on the
-        day it became current -- which is the eight-month staleness the whole
-        pipeline is written against, just delayed.
+        build would sail past a gate that only looked at today's year, sit on
+        main with CI green, and take the published calendar down on the day it
+        became current -- the eight-month staleness this pipeline is written
+        against, just delayed.
+
+        Years that have already ended are deliberately not gated. Last year's
+        config is normally still on disk after a roll while its rows are not,
+        so it does not build -- and it never will again, because
+        resolve_start_year only ever moves forward. Gating it blocked
+        publishing on this very repository, permanently, with no way for
+        anybody to clear it: the fix would have been deleting a file the editor
+        has no page for.
         """
+        from calendar_gen import school_year
+
+        current = school_year.current_start_year()
         problems = []
         for label in store.year_labels():
             year = start_year_of(label)
+            if year is None or year < current:
+                continue
             build, error, _ = build_current(store, year)
             if error:
                 problems.append(f"{label}: {error}")
